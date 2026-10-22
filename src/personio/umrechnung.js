@@ -144,7 +144,15 @@
         return block.aufgaben.join(', ');
     }
 
-    const api = { personioBloecke, alsUhrzeit, kommentar, arbeitszeit };
+    // Übergabe an den Personio-Teil über chrome.storage: Datum als Schlüssel, Zeiten als HH:MM
+    function personioExport(datum, abschnitte) {
+        return {
+            datum: datum,
+            bloecke: personioBloecke(abschnitte).map(b => ({ art: b.art, von: alsUhrzeit(b.von), bis: alsUhrzeit(b.bis), kommentar: kommentar(b) }))
+        };
+    }
+
+    const api = { personioBloecke, personioExport, alsUhrzeit, kommentar, arbeitszeit };
 
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = api;

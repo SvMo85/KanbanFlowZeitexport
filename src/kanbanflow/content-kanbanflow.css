@@ -13,6 +13,14 @@
     cursor: wait;
 }
 
+.kfze-knopf.kfze-knopf-erledigt,
+.kfze-knopf.kfze-knopf-erledigt:disabled {
+    background: #2f855a;
+    border-color: #2f855a;
+    opacity: 1;
+    cursor: default;
+}
+
 .kfze-export {
     position: fixed;
     right: 16px;
@@ -159,6 +167,24 @@
 
 .kfze-summe {
     font-weight: 600;
+}
+
+.kfze-knoepfe {
+    display: flex;
+    gap: 8px;
+}
+
+.kfze-meldung {
+    position: fixed;
+    right: 16px;
+    bottom: 64px;
+    z-index: 2147483002;
+    max-width: 360px;
+    padding: 10px 14px;
+    border-radius: 4px;
+    background: #1a202c;
+    color: #fff;
+    font: 14px/1.4 system-ui, sans-serif;
 }
 
 .kfze-hinweis {

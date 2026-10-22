@@ -58,16 +58,36 @@
         dialog.appendChild(element('h2', '', 'Zeitexport'));
 
         const inhalt = element('div');
+        const status = element('p', 'kfze-hinweis');
+        let uebernehmen = null;
         if (tage.length === 0) {
             inhalt.textContent = 'Auf diesem Board sind keine eigenen Zeiten erfasst.';
         } else {
             const auswahl = element('select', 'kfze-auswahl');
             tage.forEach(datum => auswahl.appendChild(new Option(tagAnzeige(datum), datum)));
-            auswahl.addEventListener('change', () => zeigeTag(inhalt, boardDaten, auswahl.value, jetzt));
+            auswahl.addEventListener('change', () => {
+                zeigeTag(inhalt, boardDaten, auswahl.value, jetzt);
+                status.textContent = '';
+                uebernehmen.textContent = 'Für Personio übernehmen';
+                uebernehmen.disabled = false;
+                uebernehmen.classList.remove('kfze-knopf-erledigt');
+            });
             dialog.appendChild(auswahl);
             zeigeTag(inhalt, boardDaten, tage[0], jetzt);
+
+            uebernehmen = element('button', 'kfze-knopf', 'Für Personio übernehmen');
+            uebernehmen.type = 'button';
+            uebernehmen.addEventListener('click', async () => {
+                const abschnitte = kf.tagesabschnitte(boardDaten, auswahl.value, jetzt);
+                await chrome.storage.local.set({ personioExport: globalThis.KfPersonioUmrechnung.personioExport(auswahl.value, abschnitte) });
+                status.textContent = 'Übernommen: ' + tagAnzeige(auswahl.value) + '. Jetzt in Personio „Zeitexport einfügen" klicken.';
+                uebernehmen.textContent = 'Übernommen';
+                uebernehmen.disabled = true;
+                uebernehmen.classList.add('kfze-knopf-erledigt');
+            });
         }
         dialog.appendChild(inhalt);
+        dialog.appendChild(status);
 
         if (kf.hatManuelleEintraege(boardDaten)) {
             dialog.appendChild(element('p', 'kfze-hinweis', 'Manuell nachgetragene Zeiten sind vorhanden, werden aber noch nicht berücksichtigt.'));
@@ -77,7 +97,10 @@
         const schliessen = element('button', 'kfze-knopf', 'Schließen');
         schliessen.type = 'button';
         schliessen.addEventListener('click', () => hintergrund.remove());
-        dialog.appendChild(schliessen);
+        const knoepfe = element('div', 'kfze-knoepfe');
+        if (uebernehmen) knoepfe.appendChild(uebernehmen);
+        knoepfe.appendChild(schliessen);
+        dialog.appendChild(knoepfe);
 
         hintergrund.appendChild(dialog);
         hintergrund.addEventListener('click', e => { if (e.target === hintergrund) hintergrund.remove(); });

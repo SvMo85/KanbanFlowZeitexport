@@ -1,8 +1,9 @@
 {
     "manifest_version": 3,
     "name": "KanbanFlow-Zeitexport",
-    "version": "0.1.0",
-    "description": "Exportiert die in KanbanFlow erfassten Zeiten eines Tages.",
+    "version": "0.2.0",
+    "description": "Exportiert die in KanbanFlow erfassten Zeiten eines Tages und trägt sie in Personio ein.",
+    "permissions": ["storage"],
     "content_scripts": [
         {
             "matches": ["https://kanbanflow.com/board/*"],
@@ -12,6 +13,14 @@
                 "src/personio/umrechnung.js",
                 "src/vorschau.js",
                 "src/kanbanflow/content-kanbanflow.js"
+            ],
+            "css": ["src/kanbanflow/content-kanbanflow.css"]
+        },
+        {
+            "matches": ["https://mahredv.app.personio.com/*"],
+            "js": [
+                "src/personio/tagauswahl.js",
+                "src/personio/content-personio.js"
             ],
             "css": ["src/kanbanflow/content-kanbanflow.css"]
         }
