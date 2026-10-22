@@ -15,6 +15,8 @@ Zielbild: [Anforderungen/R00000-vision.md](Anforderungen/R00000-vision.md).
 
 1. KanbanFlow-Board öffnen, oben neben dem Timer auf „Export" klicken, Tag wählen.
    Die Vorschau zeigt IST (KanbanFlow) und SOLL (Personio, nach den Pausen- und Höchstzeitregeln).
+   Die Personio-Tabelle lässt sich bearbeiten; „Auto" stellt die berechneten Zeiten wieder her.
+   Verstößt der bearbeitete Stand gegen eine Regel, ist Übernehmen gesperrt.
 2. „Für Personio übernehmen" klicken.
 3. In Personio die Zeiterfassung in der Monatsansicht öffnen, neben „Abwesenheit beantragen"
    auf „Zeitexport einfügen" klicken. Während des Eintragens ist die Seite gesperrt.
