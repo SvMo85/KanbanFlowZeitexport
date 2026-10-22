@@ -37,8 +37,8 @@ Das doppelte Abtippen kostet täglich Zeit und ist fehleranfällig.
    und dem, was daraus im Zielformat wird.
 4. Auf der Personio-Seite füllt ein Knopf das Erfassungsformular des passenden Tages
    mit den übernommenen Zeiten aus. Gespeichert wird vom Nutzer selbst.
-5. Die Kollegen installieren die Erweiterung ohne Programmierkenntnisse und tragen
-   ihre eigenen Zugangsdaten ein.
+5. Die Kollegen installieren die Erweiterung ohne Programmierkenntnisse nach der
+   Anleitung im Repository. Zugangsdaten braucht sie keine.
 6. Das Datum ist der Schlüssel jedes Exports. Es reist mit den Zeiten mit, damit sie
    in Personio nie am falschen Tag landen.
 
@@ -56,6 +56,10 @@ vor dem Speichern sichtbar eingehalten.
   Erweiterung im Entwicklermodus laden.
 - Kein Zugriff über die Personio-API: die Erweiterung arbeitet im angemeldeten
   Personio-Tab mit den Rechten des Nutzers, ohne Admin-Credentials oder Freigabe.
+- Die Erweiterung liest und schreibt nur in den offenen Tabs von KanbanFlow und
+  Personio, in denen der Nutzer angemeldet ist. Sie braucht keine Zugangsdaten und
+  nutzt keine REST-API.
+- Die Zeiten werden auf genau einem KanbanFlow-Board erfasst.
 - Der Nutzer speichert in Personio selbst; die Erweiterung schickt nie ab.
 - Die Daten bleiben im Browser des Nutzers, keine Übertragung an Dritte.
 - Oberfläche auf Deutsch.
@@ -70,6 +74,7 @@ vor dem Speichern sichtbar eingehalten.
 - Keine Änderungen in KanbanFlow: der Leseteil schreibt nie zurück.
 - Keine Auswertungen oder Berichte über Zeiten.
 - Keine Synchronisation im Hintergrund: nur auf Knopfdruck, Tag für Tag.
+- Keine Zusammenführung von Zeiten aus mehreren Boards.
 
 ## Offene Richtungsfragen
 
@@ -85,11 +90,11 @@ vor dem Speichern sichtbar eingehalten.
    Mozilla und widerspricht damit der Verteilung nur über das Repository.
 5. Erlaubt die IT-Richtlinie den Entwicklermodus und entpackte Erweiterungen in
    Chrome und Edge?
-6. Woher liest der KanbanFlow-Teil: REST-API mit Token oder aus der Seite selbst?
-   Was passiert, wenn ein Nutzer Zeiten auf mehreren Boards führt?
 
 ## Ergänzungshistorie
 
 | Datum | Ergänzung |
 |---|---|
 | 2026-10-22 | Vision angelegt (Export mit Zielformaten, Personio zuerst, Vorschau mit zwei Zeitstrahlen, Datum als Schlüssel, Personio-Regeln als Leitplanke, Chrome und Edge, Verteilung nur über das Repository) |
+| 2026-10-22 | Zielbild-Punkt 5 geändert: keine Zugangsdaten, weil die Erweiterung in den angemeldeten Tabs arbeitet |
+| 2026-10-22 | Richtungsfrage Lesequelle entschieden: Leseteil arbeitet im angemeldeten KanbanFlow-Tab ohne REST-API, Zeiten auf genau einem Board |

@@ -32,8 +32,7 @@ zuletzt: 2026-10-22
 ## Offene Fragen
 
 1. Vision-Fragen 1 bis 3 (Regelverstöße, Lücken zwischen Blöcken, Struktur in Personio) bestimmen „WIRD ZU" und das Ausfüllen — vor dem Verfeinern von I0005, I0006 und D0003 klären.
-2. In der Vision überholt, mit `/vision entscheiden` nachzuziehen: Zielbild-Punkt 5 („eigene Zugangsdaten"), Frage 6 („REST-API oder Seite") und mehrere Boards (es gibt nur eines).
-3. CSV ist kein Knoten — die Vision setzt nur Personio um.
+2. CSV ist kein Knoten — die Vision setzt nur Personio um.
 
 ## Notizen / Quellen
 
