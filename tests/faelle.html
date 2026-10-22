@@ -50,6 +50,8 @@
               abschnitte: tag('A 07:00 13:00 Portal', 'P 13:00 13:30', 'A 13:30 16:30 Portal') },
             { titel: 'Mehr als 10 h Arbeit', erwartung: 'Bei 10 h gekappt, Arbeit endet 17:45 statt 18:30.',
               abschnitte: tag('A 07:00 12:00 Portal', 'P 12:00 12:45', 'A 12:45 18:30 Portal') },
+            { titel: 'Mehrere Maschinen: Abschnitt doppelt und überlappend', erwartung: 'Personio bekommt einen Arbeitsblock 14:53–17:30, nicht doppelt gezählt; keine Überschneidungs-Warnung.',
+              abschnitte: tag('A 08:52 14:25 Portal', 'P 14:25 14:53', 'A 14:53 17:19 Portal', 'A 14:53 17:19 Portal', 'A 17:00 17:30 Allgemein') },
             { titel: 'Echter Tag 21.10. aus KanbanFlow', erwartung: 'Regelkonform, nur zusammengefasst und auf Minuten abgerundet: 8:24 h Arbeit wie in KanbanFlow.',
               abschnitte: tag('A 08:25:02 09:24:00 Allgemein', 'A 09:24:00 12:00:52 Virtual Machine Portal', 'P 12:00:52 12:44:57',
                               'A 12:44:57 12:57:18 Allgemein', 'A 12:57:18 17:33:32 Virtual Machine Portal') }

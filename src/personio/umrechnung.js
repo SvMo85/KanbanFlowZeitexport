@@ -28,19 +28,31 @@
         return bloecke.filter(istArbeit).reduce((summe, b) => summe + dauer(b), 0);
     }
 
+    // Dauer aller Blöcke einer Art, überlappende Zeit nur einmal gezählt (Timer auf zwei Maschinen)
+    function dauerOhneUeberlappung(bloecke, art) {
+        let summe = 0;
+        let bisher = -Infinity;
+        bloecke.filter(b => b.art === art).sort((x, y) => x.von - y.von).forEach(b => {
+            const von = Math.max(b.von, bisher);
+            if (b.bis > von) summe += b.bis - von;
+            bisher = Math.max(bisher, b.bis);
+        });
+        return summe;
+    }
+
     function alsBloecke(abschnitte) {
         return abschnitte
             .map(a => ({ art: a.art, von: minutenSeitMitternacht(a.start), bis: minutenSeitMitternacht(a.ende), aufgaben: a.aufgabe ? [a.aufgabe] : [] }))
             .filter(b => dauer(b) > 0);
     }
 
-    // Aneinanderstoßende Blöcke gleicher Art werden einer
+    // Aneinanderstoßende oder überlappende Blöcke gleicher Art werden einer (Arbeit lässt sich nicht doppelt leisten)
     function zusammengefasst(bloecke) {
         const ergebnis = [];
-        for (const b of bloecke) {
+        for (const b of bloecke.slice().sort((x, y) => x.von - y.von)) {
             const vorheriger = ergebnis[ergebnis.length - 1];
-            if (vorheriger && vorheriger.art === b.art && vorheriger.bis === b.von) {
-                vorheriger.bis = b.bis;
+            if (vorheriger && vorheriger.art === b.art && b.von <= vorheriger.bis) {
+                vorheriger.bis = Math.max(vorheriger.bis, b.bis);
                 vorheriger.aufgaben = [...new Set(vorheriger.aufgaben.concat(b.aufgaben))];
             } else {
                 ergebnis.push({ ...b, aufgaben: b.aufgaben.slice() });
@@ -220,7 +232,7 @@
         };
     }
 
-    const api = { personioBloecke, personioExport, regelverstoesse, verschiebeGrenze, alsUhrzeit, alsMinuten, kommentar, arbeitszeit };
+    const api = { personioBloecke, personioExport, regelverstoesse, verschiebeGrenze, alsUhrzeit, alsMinuten, kommentar, arbeitszeit, dauerOhneUeberlappung };
 
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = api;

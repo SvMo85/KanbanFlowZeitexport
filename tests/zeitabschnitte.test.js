@@ -11,6 +11,7 @@ function boardDaten() {
             workEntries: [
                 {
                     userId: 'ich',
+                    startTimestamp: '2026-10-20T05:44:05Z',
                     startTimestampLocal: '2026-10-20T07:44:05+02:00',
                     actions: [
                         { taskName: 'Allgemein', end: { timestampLocal: '2026-10-20T08:00:00+02:00', reason: 'taskChange' } },
@@ -19,6 +20,7 @@ function boardDaten() {
                 },
                 {
                     userId: 'ich',
+                    startTimestamp: '2026-10-20T12:08:25Z',
                     startTimestampLocal: '2026-10-20T14:08:25+02:00',
                     actions: [
                         { taskName: 'Portal', end: { timestampLocal: '2026-10-20T17:00:39+02:00', reason: 'stopped' } }
@@ -30,6 +32,7 @@ function boardDaten() {
             clients: [
                 {
                     userId: 'kollege',
+                    mode: 'running',
                     workEntry: {
                         userId: 'kollege',
                         startTimestampLocal: '2026-10-22T06:27:33+02:00',
@@ -38,8 +41,10 @@ function boardDaten() {
                 },
                 {
                     userId: 'ich',
+                    mode: 'running',
                     workEntry: {
                         userId: 'ich',
+                        startTimestamp: '2026-10-22T06:52:39Z',
                         startTimestampLocal: '2026-10-22T08:52:39+02:00',
                         actions: [
                             { taskName: 'Allgemein', end: { timestampLocal: '2026-10-22T09:14:49+02:00', reason: 'taskChange' } },
@@ -91,6 +96,40 @@ test('Wenn_heute_ein_Timer_laeuft_dann_zaehlt_nur_der_eigene_und_endet_jetzt', (
     assert.deepEqual(abschnitte.map(a => a.aufgabe), ['Allgemein', 'Portal']);   // Timer des Kollegen fehlt
     assert.equal(abschnitte[1].ende, JETZT);                                     // offener Abschnitt bis jetzt
     assert.equal(abschnitte[1].laeuft, true);
+});
+
+// Mehrere Maschinen: je Maschine ein Client in timerState
+test('Wenn_gestoppter_Client_einer_zweiten_Maschine_den_beendeten_Lauf_noch_haelt_dann_zaehlt_er_einmal', () => {
+    const daten = boardDaten();
+    const beendet = daten.timerLogData.workEntries[1];   // 14:08:25 bis 17:00:39
+    daten.timerState.clients.push({ userId: 'ich', mode: 'stopped', workEntry: JSON.parse(JSON.stringify(beendet)) });
+
+    const abschnitte = kf.tagesabschnitte(daten, '2026-10-20', JETZT);
+
+    assert.deepEqual(abschnitte.map(a => a.art + ' ' + a.start.slice(11, 16)), ['Arbeit 07:44', 'Arbeit 08:00', 'Pause 12:46', 'Arbeit 14:08']);
+});
+
+test('Wenn_derselbe_Lauf_auf_zwei_Maschinen_laeuft_dann_zaehlt_er_einmal', () => {
+    const daten = boardDaten();
+    const laufend = daten.timerState.clients[1];
+    daten.timerState.clients.push(JSON.parse(JSON.stringify(laufend)));
+
+    const abschnitte = kf.tagesabschnitte(daten, '2026-10-22', JETZT);
+
+    assert.deepEqual(abschnitte.map(a => a.aufgabe), ['Allgemein', 'Portal']);   // nicht viermal
+});
+
+test('Wenn_Abschnitte_sich_ueberlappen_dann_entsteht_darin_keine_Pause', () => {
+    const daten = boardDaten();
+    // zweiter Lauf auf einer anderen Maschine, 08:30 bis 09:00, mitten im ersten Lauf
+    daten.timerLogData.workEntries.push({
+        userId: 'ich', startTimestamp: '2026-10-20T06:30:00Z', startTimestampLocal: '2026-10-20T08:30:00+02:00',
+        actions: [{ taskName: 'Andere Maschine', end: { timestampLocal: '2026-10-20T09:00:00+02:00' } }]
+    });
+
+    const pausen = kf.tagesabschnitte(daten, '2026-10-20', JETZT).filter(a => a.art === 'Pause');
+
+    assert.deepEqual(pausen.map(p => p.start.slice(11, 16) + '-' + p.ende.slice(11, 16)), ['12:46-14:08']);   // nur die echte Lücke
 });
 
 test('Wenn_Zeiten_an_mehreren_Tagen_dann_sind_die_Tage_absteigend_verfuegbar', () => {

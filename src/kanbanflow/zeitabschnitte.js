@@ -15,13 +15,20 @@
         return JSON.parse(skripttext.slice(jsonAnfang, jsonEnde));
     }
 
+    // Mit KanbanFlow auf mehreren Maschinen führt timerState je Maschine einen Client - auch gestoppte Clients
+    // halten noch ihren letzten Lauf. Gezählt werden nur laufende Clients, und jeder Lauf (Startzeitpunkt)
+    // nur einmal; der Eintrag aus dem Protokoll hat Vorrang.
     function eigeneTimerlaeufe(boardDaten) {
         const abgeschlossene = boardDaten.timerLogData.workEntries
             .filter(lauf => lauf.userId === boardDaten.userId);
-        const laufender = boardDaten.timerState.clients
-            .filter(client => client.userId === boardDaten.userId && client.workEntry)
+        const laufende = boardDaten.timerState.clients
+            .filter(client => client.userId === boardDaten.userId && client.mode === 'running' && client.workEntry)
             .map(client => client.workEntry);
-        return abgeschlossene.concat(laufender);
+        const jeStart = new Map();
+        abgeschlossene.concat(laufende).forEach(lauf => {
+            if (!jeStart.has(lauf.startTimestamp)) jeStart.set(lauf.startTimestamp, lauf);
+        });
+        return [...jeStart.values()];
     }
 
     function arbeitsabschnitte(timerlauf, jetztLokal) {
@@ -39,14 +46,17 @@
         return zeitstempelLokal.slice(0, 10);
     }
 
+    // Pause ist nur, was nach dem bisher spätesten Arbeitsende liegt - überlappende Abschnitte
+    // (Timer auf zwei Maschinen) erzeugen keine Pause in der Überlappung
     function mitPausen(arbeit) {
         const ergebnis = [];
-        arbeit.forEach((abschnitt, index) => {
-            const vorheriger = arbeit[index - 1];
-            if (vorheriger && Date.parse(abschnitt.start) > Date.parse(vorheriger.ende)) {
-                ergebnis.push({ art: 'Pause', start: vorheriger.ende, ende: abschnitt.start, aufgabe: '', laeuft: false });
+        let spaetestesEnde = null;
+        arbeit.forEach(abschnitt => {
+            if (spaetestesEnde && Date.parse(abschnitt.start) > Date.parse(spaetestesEnde)) {
+                ergebnis.push({ art: 'Pause', start: spaetestesEnde, ende: abschnitt.start, aufgabe: '', laeuft: false });
             }
             ergebnis.push(abschnitt);
+            if (!spaetestesEnde || Date.parse(abschnitt.ende) > Date.parse(spaetestesEnde)) spaetestesEnde = abschnitt.ende;
         });
         return ergebnis;
     }

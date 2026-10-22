@@ -106,7 +106,7 @@
     }
 
     function summeFuer(bloecke) {
-        const summe = art => bloecke.filter(b => b.art === art).reduce((s, b) => s + (b.bis - b.von), 0);
+        const summe = art => umrechnung.dauerOhneUeberlappung(bloecke, art);
         return element('p', 'kfze-summe', 'Arbeit ' + dauerAnzeige(summe('Arbeit')) + ' h · Pause ' + dauerAnzeige(summe('Pause')) + ' h');
     }
 
