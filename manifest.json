@@ -6,7 +6,7 @@
     "content_scripts": [
         {
             "matches": ["https://kanbanflow.com/board/*"],
-            "js": ["src/kanbanflow/zeitabschnitte.js", "src/kanbanflow/content-kanbanflow.js"],
+            "js": ["src/kanbanflow/zeitabschnitte.js", "src/kanbanflow/zeitstrahl.js", "src/kanbanflow/content-kanbanflow.js"],
             "css": ["src/kanbanflow/content-kanbanflow.css"]
         }
     ]

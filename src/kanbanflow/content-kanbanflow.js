@@ -66,6 +66,33 @@
         return tabelle;
     }
 
+    function zeitstrahlFuer(abschnitte) {
+        const strahl = globalThis.KfZeitstrahl.zeitstrahl(abschnitte);
+        const rahmen = element('div', 'kfze-strahl');
+        rahmen.appendChild(element('div', 'kfze-strahl-titel', 'IST (KanbanFlow)'));
+
+        const spur = element('div', 'kfze-strahl-spur');
+        strahl.balken.forEach((b, index) => {
+            const a = abschnitte[index];
+            const balken = element('div', 'kfze-strahl-balken');
+            balken.classList.add(b.art === 'Pause' ? 'kfze-strahl-pause' : 'kfze-strahl-arbeit');
+            balken.style.left = b.linksProzent + '%';
+            balken.style.width = b.breiteProzent + '%';
+            balken.title = a.art + ' ' + uhrzeit(a.start) + '–' + (a.laeuft ? 'läuft' : uhrzeit(a.ende)) + (a.aufgabe ? ' · ' + a.aufgabe : '');
+            spur.appendChild(balken);
+        });
+        rahmen.appendChild(spur);
+
+        const achse = element('div', 'kfze-strahl-achse');
+        strahl.stunden.forEach(s => {
+            const marke = element('span', 'kfze-strahl-stunde', zweistellig(s.stunde));
+            marke.style.left = s.linksProzent + '%';
+            achse.appendChild(marke);
+        });
+        rahmen.appendChild(achse);
+        return rahmen;
+    }
+
     function summenFuer(abschnitte) {
         const summe = art => abschnitte.filter(a => a.art === art).reduce((s, a) => s + kf.dauerInMinuten(a), 0);
         return element('p', 'kfze-summe', 'Arbeit ' + dauerAnzeige(summe('Arbeit')) + ' h · Pause ' + dauerAnzeige(summe('Pause')) + ' h');
@@ -73,7 +100,7 @@
 
     function zeigeTag(inhalt, boardDaten, datum, jetzt) {
         const abschnitte = kf.tagesabschnitte(boardDaten, datum, jetzt);
-        inhalt.replaceChildren(tabelleFuer(abschnitte), summenFuer(abschnitte));
+        inhalt.replaceChildren(zeitstrahlFuer(abschnitte), tabelleFuer(abschnitte), summenFuer(abschnitte));
     }
 
     function zeigeDialog(boardDaten) {
@@ -122,8 +149,23 @@
         }
     }
 
-    const knopf = element('button', 'kfze-knopf kfze-export', 'Export');
+    // Neben den Timer in der Kopfleiste; ohne Kopfleiste unten rechts
+    function platziere(knopf) {
+        const timer = document.querySelector('.boardHeader-shortcutIcons .collapsedTimer');
+        if (timer) {
+            if (timer.nextElementSibling !== knopf) {
+                knopf.className = 'kfze-knopf kfze-kopfknopf';
+                timer.after(knopf);
+            }
+        } else if (!knopf.isConnected) {
+            knopf.className = 'kfze-knopf kfze-export';
+            document.body.appendChild(knopf);
+        }
+    }
+
+    const knopf = element('button', '', 'Export');
     knopf.type = 'button';
     knopf.addEventListener('click', () => exportiere(knopf));
-    document.body.appendChild(knopf);
+    platziere(knopf);
+    new MutationObserver(() => platziere(knopf)).observe(document.body, { childList: true, subtree: true });
 })();
