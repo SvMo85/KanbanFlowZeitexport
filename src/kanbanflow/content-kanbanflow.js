@@ -164,13 +164,20 @@
         }
     }
 
-    // Neben den Timer in der Kopfleiste; ohne Kopfleiste unten rechts
+    // In der Kopfleiste: hinter dem Timer; ohne Timer (nicht gestartet, anderes Board) vorn in der Leiste
+    // mit Lupe und Filter, sonst vorn im rechten Kopfbereich. Nur ganz ohne Kopfleiste unten rechts.
     function platziere(knopf) {
         const timer = document.querySelector('.boardHeader-shortcutIcons .collapsedTimer');
+        const leiste = document.querySelector('.boardHeader-shortcutIcons') || document.querySelector('.boardHeader-actions');
         if (timer) {
             if (timer.nextElementSibling !== knopf) {
                 knopf.className = 'kfze-knopf kfze-knopf-personio kfze-kopfknopf';
                 timer.after(knopf);
+            }
+        } else if (leiste) {
+            if (leiste.firstElementChild !== knopf) {
+                knopf.className = 'kfze-knopf kfze-knopf-personio kfze-kopfknopf';
+                leiste.prepend(knopf);
             }
         } else if (!knopf.isConnected) {
             knopf.className = 'kfze-knopf kfze-knopf-personio kfze-export';

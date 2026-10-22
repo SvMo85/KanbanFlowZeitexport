@@ -125,11 +125,16 @@
         return feld;
     }
 
-    // Die SOLL-Tabelle zum Bearbeiten: je Zeile Art, Von, Bis, Dauer, Kommentar, Löschen
-    function sollZeile(b, beiAenderung, beiLoeschen) {
+    // Die SOLL-Tabelle zum Bearbeiten: je Zeile Art, Von, Bis, Dauer, Kommentar, Löschen.
+    // Zeitänderungen gehen an beiZeit(feld, minuten), weil sie angrenzende Blöcke mitziehen können.
+    // Die Zeile merkt sich ihre Felder (zeile.felder), damit Zeitänderungen ohne Neuzeichnen
+    // nachgetragen werden können - Neuzeichnen nähme dem Feld unter dem Cursor den Fokus.
+    function sollZeile(b, beiAenderung, beiZeit, beiLoeschen) {
         const zeile = element('tr', b.art === 'Pause' ? 'kfze-pause' : '');
         const dauer = element('td', '', dauerAnzeige(b.bis - b.von));
-        const zeigeDauer = () => { dauer.textContent = dauerAnzeige(b.bis - b.von); };
+        const von = zeitfeld(b.von, m => beiZeit('von', m));
+        const bis = zeitfeld(b.bis, m => beiZeit('bis', m));
+        zeile.felder = { von, bis, dauer };
 
         const art = element('select', 'kfze-artfeld');
         ['Arbeit', 'Pause'].forEach(a => art.appendChild(new Option(a, a, false, a === b.art)));
@@ -148,8 +153,8 @@
         const zelle = inhaltEl => { const td = element('td'); td.appendChild(inhaltEl); return td; };
         zeile.append(
             zelle(art),
-            zelle(zeitfeld(b.von, m => { b.von = m; zeigeDauer(); beiAenderung(); })),
-            zelle(zeitfeld(b.bis, m => { b.bis = m; zeigeDauer(); beiAenderung(); })),
+            zelle(von),
+            zelle(bis),
             dauer,
             zelle(kommentar),
             zelle(knopf('Löschen', beiLoeschen, 'kfze-knopf-leise')));
@@ -183,7 +188,22 @@
             if (beiAenderung) beiAenderung({ bloecke: alsExportBloecke(soll), verstoesse });
         };
         const zeichneSoll = () => {
-            rumpf.replaceChildren(...soll.map(b => sollZeile(b, zeigeStand, () => { soll = soll.filter(x => x !== b); zeichneSoll(); })));
+            rumpf.replaceChildren(...soll.map((b, index) => sollZeile(b, zeigeStand,
+                (feld, minuten) => aendereZeit(index, feld, minuten),
+                () => { soll = soll.filter(x => x !== b); zeichneSoll(); })));
+            zeigeStand();
+        };
+        // Zeit geändert: Werte in die vorhandenen Blöcke übernehmen (Nachbar wandert mit) und nur die
+        // Felder nachtragen, die sich geändert haben - das Feld unter dem Cursor bleibt unberührt
+        const aendereZeit = (index, feld, minuten) => {
+            const neu = umrechnung.verschiebeGrenze(soll, index, feld, minuten);
+            soll.forEach((b, i) => { b.von = neu[i].von; b.bis = neu[i].bis; });
+            [...rumpf.children].forEach((zeile, i) => {
+                const { von, bis, dauer } = zeile.felder;
+                if (document.activeElement !== von) von.value = uhrzeit(soll[i].von);
+                if (document.activeElement !== bis) bis.value = uhrzeit(soll[i].bis);
+                dauer.textContent = dauerAnzeige(soll[i].bis - soll[i].von);
+            });
             zeigeStand();
         };
         const haengeAn = art => {

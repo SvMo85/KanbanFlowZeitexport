@@ -200,6 +200,18 @@
         return verstoesse;
     }
 
+    // Bearbeiten einer Grenze: stößt ein anderer Block genau an der alten Grenze an, wandert dessen Grenze mit
+    // (Ende von A verschoben -> Beginn der folgenden Pause wandert mit, und umgekehrt). Liefert neue Blöcke.
+    function verschiebeGrenze(bloecke, index, feld, minuten) {
+        const neu = bloecke.map(b => ({ ...b }));
+        const alt = neu[index][feld];
+        const gegenueber = feld === 'bis' ? 'von' : 'bis';
+        const nachbar = neu.find((b, i) => i !== index && b[gegenueber] === alt);
+        neu[index][feld] = minuten;
+        if (nachbar) nachbar[gegenueber] = minuten;
+        return neu;
+    }
+
     // Übergabe an den Personio-Teil über chrome.storage: Datum als Schlüssel, Zeiten als HH:MM
     function personioExport(datum, abschnitte) {
         return {
@@ -208,7 +220,7 @@
         };
     }
 
-    const api = { personioBloecke, personioExport, regelverstoesse, alsUhrzeit, alsMinuten, kommentar, arbeitszeit };
+    const api = { personioBloecke, personioExport, regelverstoesse, verschiebeGrenze, alsUhrzeit, alsMinuten, kommentar, arbeitszeit };
 
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = api;

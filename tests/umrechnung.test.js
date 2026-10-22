@@ -1,6 +1,6 @@
 ﻿const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { personioBloecke, regelverstoesse, alsUhrzeit, alsMinuten, kommentar, arbeitszeit } = require('../src/personio/umrechnung.js');
+const { personioBloecke, regelverstoesse, verschiebeGrenze, alsUhrzeit, alsMinuten, kommentar, arbeitszeit } = require('../src/personio/umrechnung.js');
 
 // Abschnitte wie aus tagesabschnitte(): "A 08:00 12:00 Aufgabe" bzw. "P 12:00 12:30"
 function tag(...zeilen) {
@@ -134,6 +134,27 @@ test('Wenn_nur_20_min_Pause_bei_8_h_dann_Verstoss_6_h_am_Stueck_und_fehlende_Pau
         'Mehr als 6 h am Stück ohne Pause von 30 min (bis 16:20).',   // 20 min unterbrechen nicht
         'Bei 8:00 h Arbeit fehlt eine Pause von mindestens 30 min an einem Stück.'
     ]);
+});
+
+test('Wenn_Ende_der_Arbeit_verschoben_dann_wandert_der_Beginn_der_folgenden_Pause_mit', () => {
+    const bloecke = bearbeitet('A 08:00 12:00', 'P 12:00 12:30', 'A 12:30 17:00');
+
+    const neu = verschiebeGrenze(bloecke, 0, 'bis', alsMinuten('12:15'));
+
+    assert.deepEqual(lesbar(neu), ['A 08:00 12:15', 'P 12:15 12:30', 'A 12:30 17:00']);
+    assert.deepEqual(lesbar(bloecke), ['A 08:00 12:00', 'P 12:00 12:30', 'A 12:30 17:00']);   // Eingabe unverändert
+});
+
+test('Wenn_Beginn_der_Arbeit_verschoben_dann_wandert_das_Ende_der_vorigen_Pause_mit', () => {
+    const neu = verschiebeGrenze(bearbeitet('A 08:00 12:00', 'P 12:00 12:30', 'A 12:30 17:00'), 2, 'von', alsMinuten('12:45'));
+
+    assert.deepEqual(lesbar(neu), ['A 08:00 12:00', 'P 12:00 12:45', 'A 12:45 17:00']);
+});
+
+test('Wenn_Luecke_zum_Nachbarn_dann_wandert_nichts_mit', () => {
+    const neu = verschiebeGrenze(bearbeitet('A 08:00 12:00', 'A 12:30 17:00'), 0, 'bis', alsMinuten('12:10'));
+
+    assert.deepEqual(lesbar(neu), ['A 08:00 12:10', 'A 12:30 17:00']);
 });
 
 test('Wenn_Auto_Ergebnis_geprueft_wird_dann_ist_es_regelkonform', () => {

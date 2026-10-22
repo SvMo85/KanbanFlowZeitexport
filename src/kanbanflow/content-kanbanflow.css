@@ -50,9 +50,13 @@
     z-index: 2147483000;
 }
 
+/* Maße der Timer-Box daneben: 34 px hoch, 4 px Radius */
 .kfze-kopfknopf {
+    box-sizing: border-box;
+    height: 34px;
     margin: 0 8px;
-    padding: 6px 12px;
+    padding: 0 12px;
+    border-radius: 4px;
     align-self: center;
 }
 
