@@ -143,7 +143,8 @@
         }
         // Verbraucht: ein alter Export soll beim nächsten Seitenaufruf nicht wieder bereitliegen
         await chrome.storage.local.remove('personioExport');
-        meldung('Eingetragen: ' + ausKanbanFlow.bloecke.length + ' Blöcke. Bitte prüfen und selbst speichern.');
+        const anzahl = ausKanbanFlow.bloecke.length;
+        meldung('Eingetragen: ' + anzahl + (anzahl === 1 ? ' Block' : ' Blöcke') + '. Bitte prüfen und selbst speichern.');
     }
 
     // Während des Einfügens darf nichts den Fokus aus dem Zeitfeld ziehen: Klicks, Scrollen und Tasten
