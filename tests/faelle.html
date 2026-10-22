@@ -1,0 +1,92 @@
+﻿<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <title>Zeitexport – Testfälle</title>
+    <link rel="stylesheet" href="../src/kanbanflow/content-kanbanflow.css">
+    <style>
+        body { font: 14px/1.4 system-ui, sans-serif; margin: 24px; color: #1a202c; }
+        .fall { display: block; margin: 6px 0; text-align: left; width: 560px; }
+    </style>
+</head>
+<body>
+    <h1>Zeitexport – Testfälle</h1>
+    <p>Ein Klick öffnet die Vorschau, wie sie der Export-Dialog zeigt. Dieselben Fälle prüft <code>tests/umrechnung.test.js</code>.</p>
+    <div id="faelle"></div>
+
+    <script src="../src/kanbanflow/zeitstrahl.js"></script>
+    <script src="../src/personio/umrechnung.js"></script>
+    <script src="../src/vorschau.js"></script>
+    <script>
+        // "A 08:00 12:00 Aufgabe" bzw. "P 12:00 12:30", wie in den Unit-Tests
+        function tag(...zeilen) {
+            return zeilen.map(z => {
+                const [art, von, bis, ...aufgabe] = z.split(' ');
+                const zeit = t => '2026-10-21T' + (t.length === 5 ? t + ':00' : t) + '+02:00';
+                return { art: art === 'A' ? 'Arbeit' : 'Pause', start: zeit(von), ende: zeit(bis), aufgabe: aufgabe.join(' '), laeuft: false };
+            });
+        }
+
+        const faelle = [
+            { titel: 'Zwei Aufgaben hintereinander', erwartung: 'Ein Arbeitsblock 08:52–12:00, Kommentar „Allgemein, Portal".',
+              abschnitte: tag('A 08:52 09:14 Allgemein', 'A 09:14 11:37 Portal', 'A 11:37 12:00 Allgemein') },
+            { titel: 'Sekunden abschneiden', erwartung: '08:52:59 wird 08:52, 09:14:29 wird 09:14.',
+              abschnitte: tag('A 08:52:59 09:14:29 Allgemein') },
+            { titel: 'Genau 6 h ohne Pause', erwartung: 'Unverändert, bis 6 h braucht es keine Pause.',
+              abschnitte: tag('A 08:00 14:00 Portal') },
+            { titel: '7 h ohne Pause', erwartung: 'Pause 14:00–14:30 eingeschoben, Arbeit endet 15:30 statt 15:00, Arbeitszeit bleibt 7 h.',
+              abschnitte: tag('A 08:00 15:00 Portal') },
+            { titel: 'Pause in Mindestlänge rechtzeitig', erwartung: 'Unverändert.',
+              abschnitte: tag('A 08:00 12:00 Portal', 'P 12:00 12:30', 'A 12:30 17:00 Portal') },
+            { titel: 'Einzige Pause zu kurz (20 min)', erwartung: 'Pause auf 12:00–12:30 verlängert, Arbeit beginnt erst 12:30, 10 min Arbeit gehen verloren.',
+              abschnitte: tag('A 08:00 12:00 Portal', 'P 12:00 12:20', 'A 12:20 17:00 Portal') },
+            { titel: '5 min und später 30 min Pause', erwartung: 'Unverändert, die 5 min werden nicht verlängert.',
+              abschnitte: tag('A 08:00 10:00 Portal', 'P 10:00 10:05', 'A 10:05 12:00 Portal', 'P 12:00 12:30', 'A 12:30 16:00 Portal') },
+            { titel: 'Alle Pausen zu kurz (10 und 20 min)', erwartung: 'Die längere (12:30) wird auf 30 min verlängert, die 10 min bleiben.',
+              abschnitte: tag('A 08:00 10:00 Portal', 'P 10:00 10:10', 'A 10:10 12:30 Portal', 'P 12:30 12:50', 'A 12:50 16:00 Portal') },
+            { titel: 'Mindestpause zu spät', erwartung: 'Pause an die 6-h-Grenze vorgezogen (14:00–14:30), Arbeit dazwischen rückt nach hinten, Ende bleibt 16:00.',
+              abschnitte: tag('A 08:00 15:00 Portal', 'P 15:00 15:30', 'A 15:30 16:00 Portal') },
+            { titel: '9 h Arbeit', erwartung: '45 min Pause verlangt, Pause auf 13:00–13:45 verlängert.',
+              abschnitte: tag('A 07:00 13:00 Portal', 'P 13:00 13:30', 'A 13:30 16:30 Portal') },
+            { titel: 'Mehr als 10 h Arbeit', erwartung: 'Bei 10 h gekappt, Arbeit endet 17:45 statt 18:30.',
+              abschnitte: tag('A 07:00 12:00 Portal', 'P 12:00 12:45', 'A 12:45 18:30 Portal') },
+            { titel: 'Echter Tag 21.10. aus KanbanFlow', erwartung: 'Regelkonform, nur zusammengefasst und auf Minuten abgerundet: 8:24 h Arbeit wie in KanbanFlow.',
+              abschnitte: tag('A 08:25:02 09:24:00 Allgemein', 'A 09:24:00 12:00:52 Virtual Machine Portal', 'P 12:00:52 12:44:57',
+                              'A 12:44:57 12:57:18 Allgemein', 'A 12:57:18 17:33:32 Virtual Machine Portal') }
+        ];
+
+        function zeigeFall(fall) {
+            const hintergrund = document.createElement('div');
+            hintergrund.className = 'kfze-hintergrund';
+            const dialog = document.createElement('div');
+            dialog.className = 'kfze-dialog';
+
+            const titel = document.createElement('h2');
+            titel.textContent = fall.titel;
+            const erwartung = document.createElement('p');
+            erwartung.className = 'kfze-hinweis';
+            erwartung.textContent = 'Erwartung: ' + fall.erwartung;
+            const schliessen = document.createElement('button');
+            schliessen.type = 'button';
+            schliessen.className = 'kfze-knopf';
+            schliessen.textContent = 'Schließen';
+            schliessen.addEventListener('click', () => hintergrund.remove());
+
+            dialog.append(titel, erwartung, KfVorschau.inhalt(fall.abschnitte), schliessen);
+            hintergrund.appendChild(dialog);
+            hintergrund.addEventListener('click', e => { if (e.target === hintergrund) hintergrund.remove(); });
+            document.body.appendChild(hintergrund);
+        }
+
+        const liste = document.getElementById('faelle');
+        faelle.forEach((fall, index) => {
+            const knopf = document.createElement('button');
+            knopf.type = 'button';
+            knopf.className = 'kfze-knopf fall';
+            knopf.textContent = (index + 1) + '. ' + fall.titel;
+            knopf.addEventListener('click', () => zeigeFall(fall));
+            liste.appendChild(knopf);
+        });
+    </script>
+</body>
+</html>

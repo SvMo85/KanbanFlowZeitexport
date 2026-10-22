@@ -66,6 +66,19 @@ vor dem Speichern sichtbar eingehalten.
 - Personio-Regeln, wie im Konto hinterlegt: höchstens 10 h Arbeitszeit je Tag;
   höchstens 6 h am Stück; Mindestpause an einem Stück 30 min bei weniger als 9 h
   Tagesarbeitszeit, sonst 45 min.
+- Umrechnung für Personio („WIRD ZU"):
+  - Lücken zwischen Timer-Läufen sind Pausen.
+  - Aufeinanderfolgende Arbeitsabschnitte werden ein Arbeitsblock, die
+    Aufgabennamen werden sein Kommentar.
+  - Bis 6 h Arbeit braucht es keine Pause (§ 4 ArbZG).
+  - Gibt es eine Pause in Mindestlänge, wird nichts verlängert. Sind alle Pausen
+    zu kurz, wird die längste auf Mindestlänge verlängert und schneidet in die
+    folgende Arbeit. Fehlt eine Pause ganz, wird sie spätestens nach 6 h
+    eingeschoben, die Arbeit danach rückt nach hinten.
+  - Nur eine Pause in Mindestlänge unterbricht die 6 h am Stück; liegt sie zu
+    spät, wird sie an die 6-h-Grenze vorgezogen, die Arbeit dazwischen rückt
+    nach hinten.
+  - Mehr als 10 h Arbeit werden bei 10 h gekappt.
 
 ## Ausdrücklich nicht Ziel
 
@@ -78,17 +91,10 @@ vor dem Speichern sichtbar eingehalten.
 
 ## Offene Richtungsfragen
 
-1. Was tut die Vorschau, wenn die KanbanFlow-Zeiten gegen eine Personio-Regel
-   verstoßen? Bei mehr als 10 h kappen oder nur warnen? Eine fehlende Pause
-   einschieben und Zeiten verschieben, oder nur anzeigen?
-2. Wie werden aus den Zeitblöcken je Aufgabe Arbeitszeiträume und Pausen je Tag?
-   Gilt eine Lücke zwischen zwei Blöcken als Pause oder als ungebuchte Arbeit?
-3. Erwartet Personio je Tag einen Zeitraum mit Pause oder mehrere Zeiträume, und
-   sind dort Projekte zuzuordnen?
-4. Soll später Firefox dazukommen? Ohne Mozilla-Signatur hält eine Erweiterung im
+1. Soll später Firefox dazukommen? Ohne Mozilla-Signatur hält eine Erweiterung im
    normalen Firefox nur bis zum Neustart; die Signatur verlangt ein Hochladen zu
    Mozilla und widerspricht damit der Verteilung nur über das Repository.
-5. Erlaubt die IT-Richtlinie den Entwicklermodus und entpackte Erweiterungen in
+2. Erlaubt die IT-Richtlinie den Entwicklermodus und entpackte Erweiterungen in
    Chrome und Edge?
 
 ## Ergänzungshistorie
@@ -98,3 +104,4 @@ vor dem Speichern sichtbar eingehalten.
 | 2026-10-22 | Vision angelegt (Export mit Zielformaten, Personio zuerst, Vorschau mit zwei Zeitstrahlen, Datum als Schlüssel, Personio-Regeln als Leitplanke, Chrome und Edge, Verteilung nur über das Repository) |
 | 2026-10-22 | Zielbild-Punkt 5 geändert: keine Zugangsdaten, weil die Erweiterung in den angemeldeten Tabs arbeitet |
 | 2026-10-22 | Richtungsfrage Lesequelle entschieden: Leseteil arbeitet im angemeldeten KanbanFlow-Tab ohne REST-API, Zeiten auf genau einem Board |
+| 2026-10-22 | Richtungsfragen Regelverstöße, Lücken und Personio-Aufbau entschieden: Umrechnung als Leitplanke festgehalten (Personio erfasst Blöcke Arbeit/Pause mit Kommentar, kein Projektfeld) |

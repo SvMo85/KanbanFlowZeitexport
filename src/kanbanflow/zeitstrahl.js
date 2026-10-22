@@ -1,5 +1,6 @@
-﻿// Rechnet die Lage der Abschnitte eines Tages auf einem Zeitstrahl, gerahmt auf volle Stunden.
-// Reine Funktion ohne DOM-Zugriff, damit sie in Node testbar ist.
+﻿// Rechnet die Lage von Blöcken auf einem Zeitstrahl, gerahmt auf volle Stunden.
+// Mehrere Strahlen mit demselben Rahmen stehen bündig untereinander.
+// Reine Funktionen ohne DOM-Zugriff, damit sie in Node testbar sind. Zeiten in Minuten seit Mitternacht.
 (function (global) {
     'use strict';
 
@@ -10,28 +11,33 @@
         return stunden * 60 + minuten + sekunden / 60;
     }
 
-    function zeitstrahl(abschnitte) {
-        if (abschnitte.length === 0) {
-            return { vonStunde: 0, bisStunde: 0, stunden: [], balken: [] };
+    function rahmen(blockListen) {
+        const alle = blockListen.flat();
+        if (alle.length === 0) {
+            return { vonStunde: 0, bisStunde: 0 };
         }
-        const vonStunde = Math.floor(minutenSeitMitternacht(abschnitte[0].start) / 60);
-        const bisStunde = Math.ceil(minutenSeitMitternacht(abschnitte[abschnitte.length - 1].ende) / 60);
-        const spanne = (bisStunde - vonStunde) * 60;
-        const prozent = minuten => (minuten - vonStunde * 60) / spanne * 100;
-
-        const balken = abschnitte.map(a => {
-            const links = prozent(minutenSeitMitternacht(a.start));
-            const rechts = prozent(minutenSeitMitternacht(a.ende));
-            return { art: a.art, aufgabe: a.aufgabe, linksProzent: links, breiteProzent: rechts - links };
-        });
-        const stunden = [];
-        for (let h = vonStunde; h <= bisStunde; h++) {
-            stunden.push({ stunde: h, linksProzent: prozent(h * 60) });
-        }
-        return { vonStunde, bisStunde, stunden, balken };
+        return {
+            vonStunde: Math.floor(Math.min(...alle.map(b => b.von)) / 60),
+            bisStunde: Math.ceil(Math.max(...alle.map(b => b.bis)) / 60)
+        };
     }
 
-    const api = { zeitstrahl };
+    function zeitstrahl(bloecke, strahlRahmen) {
+        const spanne = (strahlRahmen.bisStunde - strahlRahmen.vonStunde) * 60;
+        if (spanne <= 0) {
+            return { stunden: [], balken: [] };
+        }
+        const prozent = minuten => (minuten - strahlRahmen.vonStunde * 60) / spanne * 100;
+
+        const balken = bloecke.map(b => ({ art: b.art, linksProzent: prozent(b.von), breiteProzent: prozent(b.bis) - prozent(b.von) }));
+        const stunden = [];
+        for (let h = strahlRahmen.vonStunde; h <= strahlRahmen.bisStunde; h++) {
+            stunden.push({ stunde: h, linksProzent: prozent(h * 60) });
+        }
+        return { stunden, balken };
+    }
+
+    const api = { minutenSeitMitternacht, rahmen, zeitstrahl };
 
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = api;

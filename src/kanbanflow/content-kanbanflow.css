@@ -75,14 +75,41 @@
     font-style: italic;
 }
 
-.kfze-strahl {
-    margin-bottom: 16px;
+.kfze-strahlen {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 8px;
+    row-gap: 2px;
+    align-items: center;
+    margin-bottom: 8px;
 }
 
-.kfze-strahl-titel {
-    font-size: 12px;
+.kfze-strahl-name {
+    font-size: 13px;
+    font-weight: 600;
     color: #4a5568;
-    margin-bottom: 4px;
+    white-space: nowrap;
+}
+
+.kfze-badge {
+    display: inline-block;
+    vertical-align: super;
+    margin-left: 2px;
+    padding: 0 3px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 13px;
+    color: #fff;
+}
+
+/* Hausfarben nach Augenmaß aus den Screenshots: KanbanFlow-Logo orange, Personio-Speichern-Knopf cyan */
+.kfze-badge-kanbanflow {
+    background: #f39200;
+}
+
+.kfze-badge-personio {
+    background: #1ba3d8;
 }
 
 .kfze-strahl-spur {
@@ -123,6 +150,11 @@
 .kfze-strahl-stunde {
     position: absolute;
     transform: translateX(-50%);
+}
+
+.kfze-teil h3 {
+    margin: 16px 0 4px;
+    font-size: 14px;
 }
 
 .kfze-summe {

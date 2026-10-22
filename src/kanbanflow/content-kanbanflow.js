@@ -23,14 +23,6 @@
         return wochentag + ', ' + datum.slice(8, 10) + '.' + datum.slice(5, 7) + '.' + datum.slice(0, 4);
     }
 
-    function uhrzeit(zeitstempelLokal) {
-        return zeitstempelLokal.slice(11, 16);
-    }
-
-    function dauerAnzeige(minuten) {
-        return Math.floor(minuten / 60) + ':' + zweistellig(minuten % 60);
-    }
-
     async function ladeBoardDaten() {
         const antwort = await fetch(location.href, { credentials: 'same-origin' });
         if (!antwort.ok) {
@@ -52,55 +44,9 @@
         return el;
     }
 
-    function tabelleFuer(abschnitte) {
-        const tabelle = element('table', 'kfze-tabelle');
-        const kopf = tabelle.createTHead().insertRow();
-        ['Art', 'Von', 'Bis', 'Dauer', 'Aufgabe'].forEach(t => kopf.appendChild(element('th', '', t)));
-        const rumpf = tabelle.createTBody();
-        abschnitte.forEach(a => {
-            const zeile = rumpf.insertRow();
-            zeile.className = a.art === 'Pause' ? 'kfze-pause' : '';
-            [a.art, uhrzeit(a.start), a.laeuft ? 'läuft' : uhrzeit(a.ende), dauerAnzeige(kf.dauerInMinuten(a)), a.aufgabe]
-                .forEach(t => zeile.insertCell().textContent = t);
-        });
-        return tabelle;
-    }
-
-    function zeitstrahlFuer(abschnitte) {
-        const strahl = globalThis.KfZeitstrahl.zeitstrahl(abschnitte);
-        const rahmen = element('div', 'kfze-strahl');
-        rahmen.appendChild(element('div', 'kfze-strahl-titel', 'IST (KanbanFlow)'));
-
-        const spur = element('div', 'kfze-strahl-spur');
-        strahl.balken.forEach((b, index) => {
-            const a = abschnitte[index];
-            const balken = element('div', 'kfze-strahl-balken');
-            balken.classList.add(b.art === 'Pause' ? 'kfze-strahl-pause' : 'kfze-strahl-arbeit');
-            balken.style.left = b.linksProzent + '%';
-            balken.style.width = b.breiteProzent + '%';
-            balken.title = a.art + ' ' + uhrzeit(a.start) + '–' + (a.laeuft ? 'läuft' : uhrzeit(a.ende)) + (a.aufgabe ? ' · ' + a.aufgabe : '');
-            spur.appendChild(balken);
-        });
-        rahmen.appendChild(spur);
-
-        const achse = element('div', 'kfze-strahl-achse');
-        strahl.stunden.forEach(s => {
-            const marke = element('span', 'kfze-strahl-stunde', zweistellig(s.stunde));
-            marke.style.left = s.linksProzent + '%';
-            achse.appendChild(marke);
-        });
-        rahmen.appendChild(achse);
-        return rahmen;
-    }
-
-    function summenFuer(abschnitte) {
-        const summe = art => abschnitte.filter(a => a.art === art).reduce((s, a) => s + kf.dauerInMinuten(a), 0);
-        return element('p', 'kfze-summe', 'Arbeit ' + dauerAnzeige(summe('Arbeit')) + ' h · Pause ' + dauerAnzeige(summe('Pause')) + ' h');
-    }
-
     function zeigeTag(inhalt, boardDaten, datum, jetzt) {
         const abschnitte = kf.tagesabschnitte(boardDaten, datum, jetzt);
-        inhalt.replaceChildren(zeitstrahlFuer(abschnitte), tabelleFuer(abschnitte), summenFuer(abschnitte));
+        inhalt.replaceChildren(globalThis.KfVorschau.inhalt(abschnitte));
     }
 
     function zeigeDialog(boardDaten) {
