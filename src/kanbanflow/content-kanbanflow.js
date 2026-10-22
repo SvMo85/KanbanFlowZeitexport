@@ -44,6 +44,17 @@
         return el;
     }
 
+    // Knöpfe, die nach Personio führen, tragen Personio-Farbe und -Logo; die Beschriftung ist der letzte Kindknoten
+    function knopfMitPersonioLogo(text) {
+        const knopf = element('button', 'kfze-knopf kfze-knopf-personio');
+        knopf.type = 'button';
+        const logo = element('img', 'kfze-logo');
+        logo.src = chrome.runtime.getURL('assets/logos/personio.svg');
+        logo.alt = '';
+        knopf.append(logo, document.createTextNode(text));
+        return knopf;
+    }
+
     function zeigeTag(inhalt, boardDaten, datum, jetzt) {
         const abschnitte = kf.tagesabschnitte(boardDaten, datum, jetzt);
         inhalt.replaceChildren(globalThis.KfVorschau.inhalt(abschnitte));
@@ -60,31 +71,49 @@
         const inhalt = element('div');
         const status = element('p', 'kfze-hinweis');
         let uebernehmen = null;
+        let beiSpeicheraenderung = null;
         if (tage.length === 0) {
             inhalt.textContent = 'Auf diesem Board sind keine eigenen Zeiten erfasst.';
         } else {
             const auswahl = element('select', 'kfze-auswahl');
             tage.forEach(datum => auswahl.appendChild(new Option(tagAnzeige(datum), datum)));
-            auswahl.addEventListener('change', () => {
-                zeigeTag(inhalt, boardDaten, auswahl.value, jetzt);
-                status.textContent = '';
-                uebernehmen.textContent = 'Für Personio übernehmen';
-                uebernehmen.disabled = false;
-                uebernehmen.classList.remove('kfze-knopf-erledigt');
-            });
             dialog.appendChild(auswahl);
             zeigeTag(inhalt, boardDaten, tage[0], jetzt);
 
-            uebernehmen = element('button', 'kfze-knopf', 'Für Personio übernehmen');
-            uebernehmen.type = 'button';
+            uebernehmen = knopfMitPersonioLogo('Für Personio übernehmen');
+            const beschriftung = uebernehmen.lastChild;
+
+            // Ausgegraut, solange genau dieser Tag zur Übergabe bereitliegt; liegt ein anderer Tag bereit, warnen
+            const zeigeUebergabeZustand = async () => {
+                const { personioExport } = await chrome.storage.local.get('personioExport');
+                const diesesTag = personioExport && personioExport.datum === auswahl.value;
+                uebernehmen.disabled = Boolean(diesesTag);
+                beschriftung.textContent = diesesTag ? 'Übernommen' : 'Für Personio übernehmen';
+                if (diesesTag) {
+                    status.className = 'kfze-info';
+                    status.textContent = 'Liegt zur Übergabe bereit. Jetzt in Personio „Zeitexport einfügen" klicken.';
+                } else if (personioExport) {
+                    status.className = 'kfze-warnung';
+                    status.textContent = 'Zur Übergabe liegt noch der ' + tagAnzeige(personioExport.datum) + ' bereit. Übernehmen ersetzt ihn.';
+                } else {
+                    status.className = 'kfze-hinweis';
+                    status.textContent = '';
+                }
+            };
+
+            auswahl.addEventListener('change', () => {
+                zeigeTag(inhalt, boardDaten, auswahl.value, jetzt);
+                zeigeUebergabeZustand();
+            });
             uebernehmen.addEventListener('click', async () => {
                 const abschnitte = kf.tagesabschnitte(boardDaten, auswahl.value, jetzt);
                 await chrome.storage.local.set({ personioExport: globalThis.KfPersonioUmrechnung.personioExport(auswahl.value, abschnitte) });
-                status.textContent = 'Übernommen: ' + tagAnzeige(auswahl.value) + '. Jetzt in Personio „Zeitexport einfügen" klicken.';
-                uebernehmen.textContent = 'Übernommen';
-                uebernehmen.disabled = true;
-                uebernehmen.classList.add('kfze-knopf-erledigt');
             });
+            beiSpeicheraenderung = (aenderungen, bereich) => {
+                if (bereich === 'local' && 'personioExport' in aenderungen) zeigeUebergabeZustand();
+            };
+            chrome.storage.onChanged.addListener(beiSpeicheraenderung);
+            zeigeUebergabeZustand();
         }
         dialog.appendChild(inhalt);
         dialog.appendChild(status);
@@ -96,14 +125,18 @@
 
         const schliessen = element('button', 'kfze-knopf', 'Schließen');
         schliessen.type = 'button';
-        schliessen.addEventListener('click', () => hintergrund.remove());
+        const schliesseDialog = () => {
+            hintergrund.remove();
+            if (beiSpeicheraenderung) chrome.storage.onChanged.removeListener(beiSpeicheraenderung);
+        };
+        schliessen.addEventListener('click', schliesseDialog);
         const knoepfe = element('div', 'kfze-knoepfe');
         if (uebernehmen) knoepfe.appendChild(uebernehmen);
         knoepfe.appendChild(schliessen);
         dialog.appendChild(knoepfe);
 
         hintergrund.appendChild(dialog);
-        hintergrund.addEventListener('click', e => { if (e.target === hintergrund) hintergrund.remove(); });
+        hintergrund.addEventListener('click', e => { if (e.target === hintergrund) schliesseDialog(); });
         document.body.appendChild(hintergrund);
     }
 
@@ -123,17 +156,17 @@
         const timer = document.querySelector('.boardHeader-shortcutIcons .collapsedTimer');
         if (timer) {
             if (timer.nextElementSibling !== knopf) {
-                knopf.className = 'kfze-knopf kfze-kopfknopf';
+                knopf.className = 'kfze-knopf kfze-knopf-personio kfze-kopfknopf';
                 timer.after(knopf);
             }
         } else if (!knopf.isConnected) {
-            knopf.className = 'kfze-knopf kfze-export';
+            knopf.className = 'kfze-knopf kfze-knopf-personio kfze-export';
             document.body.appendChild(knopf);
         }
     }
 
-    const knopf = element('button', '', 'Export');
-    knopf.type = 'button';
+    // Personio-Farbe und -Logo: der Knopf führt nach Personio
+    const knopf = knopfMitPersonioLogo('Export');
     knopf.addEventListener('click', () => exportiere(knopf));
     platziere(knopf);
     new MutationObserver(() => platziere(knopf)).observe(document.body, { childList: true, subtree: true });

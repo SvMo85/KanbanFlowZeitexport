@@ -8,17 +8,39 @@
     cursor: pointer;
 }
 
-.kfze-knopf:disabled {
-    opacity: 0.6;
-    cursor: wait;
+.kfze-knopf-personio {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #009dd3;
+    border-color: #009dd3;
 }
 
-.kfze-knopf.kfze-knopf-erledigt,
-.kfze-knopf.kfze-knopf-erledigt:disabled {
-    background: #2f855a;
-    border-color: #2f855a;
-    opacity: 1;
-    cursor: default;
+.kfze-knopf-kanbanflow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f47920;
+    border-color: #f47920;
+}
+
+.kfze-logo {
+    width: 16px;
+    height: 16px;
+}
+
+/* Neben "Abwesenheit beantragen": Maße von dessen Knopf (32 px, 7,5 px Radius, 500 14px Inter) */
+.kfze-kopfknopf-personio {
+    height: 32px;
+    padding: 0 12px;
+    margin-right: 8px;
+    border-radius: 7.5px;
+    font: 500 14px/20px Inter, system-ui, sans-serif;
+}
+
+.kfze-knopf:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .kfze-export {
@@ -111,13 +133,13 @@
     color: #fff;
 }
 
-/* Hausfarben nach Augenmaß aus den Screenshots: KanbanFlow-Logo orange, Personio-Speichern-Knopf cyan */
+/* Hausfarben aus den Seiten gelesen: KanbanFlow-Logo, Personio-Knopf "Abwesenheit beantragen" */
 .kfze-badge-kanbanflow {
-    background: #f39200;
+    background: #f47920;
 }
 
 .kfze-badge-personio {
-    background: #1ba3d8;
+    background: #009dd3;
 }
 
 .kfze-strahl-spur {
@@ -174,6 +196,29 @@
     gap: 8px;
 }
 
+.kfze-blocker {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483003;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(26, 32, 44, 0.6);
+    cursor: wait;
+    user-select: none;
+}
+
+/* Text als deutliche Karte in der Mitte, damit er vor der abgedunkelten Seite lesbar ist */
+.kfze-blocker-text {
+    padding: 16px 24px;
+    border-radius: 8px;
+    border-left: 4px solid #f47920;
+    background: #fff;
+    color: #1a202c;
+    font: 600 16px/1.4 system-ui, sans-serif;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
 .kfze-meldung {
     position: fixed;
     right: 16px;
@@ -185,6 +230,23 @@
     background: #1a202c;
     color: #fff;
     font: 14px/1.4 system-ui, sans-serif;
+}
+
+/* Rückmeldung im Dialog: Info "alles gut", Warnung "Achtung" - gleicher Aufbau, andere Farbe */
+.kfze-info {
+    padding: 6px 10px;
+    border-left: 3px solid #3182ce;
+    background: #ebf8ff;
+    color: #2a4365;
+    font-size: 13px;
+}
+
+.kfze-warnung {
+    padding: 6px 10px;
+    border-left: 3px solid #d69e2e;
+    background: #fefcbf;
+    color: #744210;
+    font-size: 13px;
 }
 
 .kfze-hinweis {

@@ -4,6 +4,7 @@
     'use strict';
 
     const tagauswahl = globalThis.KfPersonioTagauswahl;
+    const PAUSE_ZWISCHEN_ZIFFERN_MS = 150;
 
     function warte(ms) {
         return new Promise(r => setTimeout(r, ms));
@@ -30,12 +31,31 @@
         el._ausblenden = setTimeout(() => el.remove(), 8000);
     }
 
-    // Die Zeitsegmente nehmen keine simulierten Tasten an, wohl aber execCommand('insertText') - Ziffer für Ziffer
-    async function tippe(segment, ziffern) {
+    // Die Zeitsegmente nehmen keine simulierten Tasten an, wohl aber execCommand('insertText').
+    // Personio verarbeitet jede Ziffer verzögert und springt selbst zwischen den Segmenten: deshalb nach
+    // jeder Ziffer warten, bis genau dieser Wert angekommen ist - sonst landen Ziffern im falschen Segment.
+    // Nach der ersten Ziffer zeigt Personio je nach Segment "5" oder schon "50" - dort zählt, dass sich
+    // etwas getan hat oder das Segment schon ihren Wert zeigt ("0" in ein Segment, das bereits 0 zeigt,
+    // ändert nichts sichtbar). Nach der zweiten Ziffer muss genau der Zielwert stehen ("08" -> 8, "52" -> 52).
+    async function tippe(segment, ziffern, feld, uhrzeit) {
         segment.focus();
-        for (const ziffer of ziffern) {
+        await warteAuf(() => document.activeElement === segment, 20);
+        const wert = () => segment.getAttribute('aria-valuenow');
+        const stand = () => wert() + '|' + segment.textContent;
+        for (const [index, ziffer] of [...ziffern].entries()) {
+            const vorher = wert();
+            const vorherStand = stand();
+            if (document.activeElement !== segment) segment.focus();
             document.execCommand('insertText', false, ziffer);
-            await warte(60);
+            const letzte = index === ziffern.length - 1;
+            const ersteAngekommen = () => stand() !== vorherStand
+                || wert() === String(Number(ziffer)) || wert() === String(Number(ziffer) * 10);
+            const angekommen = await warteAuf(() => letzte ? wert() === String(Number(ziffern)) : ersteAngekommen(), 20);
+            if (!angekommen) {
+                throw new Error(feld + ' ' + segment.getAttribute('aria-label') + ', Soll ' + uhrzeit + ': Ziffer "' + ziffer
+                    + '" nicht angekommen (Wert vorher ' + vorher + ', nachher ' + wert() + ', Anzeige "' + segment.textContent + '").');
+            }
+            await warte(PAUSE_ZWISCHEN_ZIFFERN_MS);
         }
     }
 
@@ -44,13 +64,9 @@
         const [stunden, minuten] = gruppe.querySelectorAll('[role=spinbutton]');
         const wert = () => gruppe.querySelector('input[type=time]').value;
 
-        await tippe(stunden, uhrzeit.slice(0, 2));
-        await tippe(minuten, uhrzeit.slice(3, 5));
-        if (wert() !== uhrzeit && uhrzeit[0] === '0') {
-            // zweiter Versuch ohne führende Null: "8" statt "08"
-            await tippe(stunden, uhrzeit[1]);
-            await tippe(minuten, uhrzeit.slice(3, 5));
-        }
+        await tippe(stunden, uhrzeit.slice(0, 2), feld, uhrzeit);
+        await tippe(minuten, uhrzeit.slice(3, 5), feld, uhrzeit);
+        await warteAuf(() => wert() === uhrzeit, 20);
         if (wert() !== uhrzeit) {
             throw new Error(feld + ': ' + uhrzeit + ' nicht übernommen (steht auf "' + wert() + '").');
         }
@@ -125,32 +141,114 @@
             await setzeZeit(formular, 'periods.' + i + '.end', b.bis);
             if (b.art === 'Arbeit') setzeKommentar(formular, i, b.kommentar);
         }
+        // Verbraucht: ein alter Export soll beim nächsten Seitenaufruf nicht wieder bereitliegen
+        await chrome.storage.local.remove('personioExport');
         meldung('Eingetragen: ' + ausKanbanFlow.bloecke.length + ' Blöcke. Bitte prüfen und selbst speichern.');
+    }
+
+    // Während des Einfügens darf nichts den Fokus aus dem Zeitfeld ziehen: Klicks, Scrollen und Tasten
+    // werden abgefangen. Das Einfügen selbst nutzt execCommand, keine Tastenereignisse.
+    const GESPERRTE_EREIGNISSE = ['mousedown', 'mouseup', 'click', 'dblclick', 'pointerdown', 'pointerup',
+        'wheel', 'touchstart', 'touchmove', 'keydown', 'keyup', 'keypress'];
+
+    // Nur echte Eingaben des Nutzers verwerfen; die eigenen Klicks des Skripts (Zeile aufklappen,
+    // "+ Arbeit", Löschen) sind programmatisch (isTrusted = false) und müssen durchgehen
+    function verwerfe(ereignis) {
+        if (!ereignis.isTrusted) return;
+        ereignis.preventDefault();
+        ereignis.stopPropagation();
+    }
+
+    function sperreSeite() {
+        const blocker = document.createElement('div');
+        blocker.className = 'kfze-blocker';
+        const text = document.createElement('div');
+        text.className = 'kfze-blocker-text';
+        text.textContent = 'Zeitexport trägt ein … bitte warten';
+        blocker.appendChild(text);
+        document.body.appendChild(blocker);
+        GESPERRTE_EREIGNISSE.forEach(art => window.addEventListener(art, verwerfe, { capture: true, passive: false }));
+        return () => {
+            GESPERRTE_EREIGNISSE.forEach(art => window.removeEventListener(art, verwerfe, { capture: true }));
+            blocker.remove();
+        };
     }
 
     async function knopfGeklickt(knopf) {
         knopf.disabled = true;
+        const entsperre = sperreSeite();
         try {
             await fuegeEin();
         } catch (fehler) {
             meldung('Zeitexport: ' + fehler.message);
         } finally {
-            knopf.disabled = false;
+            entsperre();
+            await zeigeExportZustand();
         }
     }
 
-    // Personio ist eine Single-Page-App: der Knopf erscheint nur auf der Zeiterfassung
+    // Ausgegraut, solange kein Export aus KanbanFlow bereitliegt
+    async function zeigeExportZustand() {
+        const { personioExport } = await chrome.storage.local.get('personioExport');
+        knopf.disabled = !personioExport;
+        knopf.title = personioExport
+            ? 'Zeiten vom ' + personioExport.datum.slice(8, 10) + '.' + personioExport.datum.slice(5, 7) + '.' + personioExport.datum.slice(0, 4) + ' einfügen'
+            : 'Kein Export vorhanden. Zuerst in KanbanFlow „Für Personio übernehmen" klicken.';
+    }
+
+    // KanbanFlow-Farbe und -Logo: der Knopf holt die Zeiten aus KanbanFlow
     const knopf = document.createElement('button');
     knopf.type = 'button';
-    knopf.className = 'kfze-knopf kfze-export';
-    knopf.textContent = 'Zeitexport einfügen';
+    const logo = document.createElement('img');
+    logo.className = 'kfze-logo';
+    logo.src = chrome.runtime.getURL('assets/logos/kanbanflow.svg');
+    logo.alt = '';
+    knopf.append(logo, 'Zeitexport einfügen');
     knopf.addEventListener('click', () => knopfGeklickt(knopf));
 
-    function platziere() {
-        const aufZeiterfassung = location.pathname.startsWith('/attendance/');
-        if (aufZeiterfassung && !knopf.isConnected) document.body.appendChild(knopf);
-        if (!aufZeiterfassung && knopf.isConnected) knopf.remove();
+    function abwesenheitKnopf() {
+        return [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Abwesenheit beantragen');
     }
+
+    // Seite fertig aufgebaut: Kopfknopf und Tageszeilen sind da - vorher würde der Knopf mitspringen
+    function seiteAufgebaut() {
+        return abwesenheitKnopf() && document.querySelector('div[role=row][data-test-id="timesheet-timecard"]');
+    }
+
+    // Fehlt "Abwesenheit beantragen" auch nach einigen Sekunden, erscheint der Knopf unten rechts
+    const ERSATZPLATZ_NACH_MS = 5000;
+    let ersatzplatzErlaubt = false;
+    let ersatzplatzZeitgeber = null;
+
+    // Personio ist eine Single-Page-App: der Knopf erscheint nur auf der Zeiterfassung,
+    // links neben "Abwesenheit beantragen", und erst wenn die Seite aufgebaut ist
+    function platziere() {
+        if (!location.pathname.startsWith('/attendance/')) {
+            if (knopf.isConnected) knopf.remove();
+            clearTimeout(ersatzplatzZeitgeber);
+            ersatzplatzZeitgeber = null;
+            ersatzplatzErlaubt = false;
+            return;
+        }
+        if (!ersatzplatzZeitgeber && !ersatzplatzErlaubt) {
+            ersatzplatzZeitgeber = setTimeout(() => { ersatzplatzErlaubt = true; platziere(); }, ERSATZPLATZ_NACH_MS);
+        }
+        if (seiteAufgebaut()) {
+            const nachbar = abwesenheitKnopf();
+            if (nachbar.previousElementSibling !== knopf) {
+                knopf.className = 'kfze-knopf kfze-knopf-kanbanflow kfze-kopfknopf-personio';
+                nachbar.before(knopf);
+            }
+        } else if (ersatzplatzErlaubt && !knopf.isConnected) {
+            knopf.className = 'kfze-knopf kfze-knopf-kanbanflow kfze-export';
+            document.body.appendChild(knopf);
+        }
+    }
+
+    zeigeExportZustand();
+    chrome.storage.onChanged.addListener((aenderungen, bereich) => {
+        if (bereich === 'local' && 'personioExport' in aenderungen) zeigeExportZustand();
+    });
 
     platziere();
     new MutationObserver(platziere).observe(document.body, { childList: true, subtree: true });
