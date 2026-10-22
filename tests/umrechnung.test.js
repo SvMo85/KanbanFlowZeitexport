@@ -161,6 +161,14 @@ test('Wenn_KanbanFlow_Abschnitte_sich_ueberlappen_dann_zaehlt_die_Summe_die_Zeit
     assert.equal(dauerOhneUeberlappung(bloecke, 'Pause'), 28);
 });
 
+test('Wenn_KanbanFlow_Abschnitte_sich_ueberlappen_dann_zaehlt_die_Summe_die_Zeit_einmal', () => {
+    // wie im Screenshot: 14:53-17:19 doppelt, dazu 17:00-17:30
+    const bloecke = bearbeitet('A 08:52 14:25', 'P 14:25 14:53', 'A 14:53 17:19', 'A 14:53 17:19', 'A 17:00 17:30');
+
+    assert.equal(dauerOhneUeberlappung(bloecke, 'Arbeit'), 8 * 60 + 10);   // 5:33 + 2:37, nicht 10:55
+    assert.equal(dauerOhneUeberlappung(bloecke, 'Pause'), 28);
+});
+
 test('Wenn_Ende_der_Arbeit_verschoben_dann_wandert_der_Beginn_der_folgenden_Pause_mit', () => {
     const bloecke = bearbeitet('A 08:00 12:00', 'P 12:00 12:30', 'A 12:30 17:00');
 

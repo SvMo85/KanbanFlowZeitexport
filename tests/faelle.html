@@ -40,7 +40,7 @@
               abschnitte: tag('A 08:00 12:00 Portal', 'P 12:00 12:30', 'A 12:30 17:00 Portal') },
             { titel: 'Einzige Pause zu kurz (20 min)', erwartung: 'Pause auf 12:00–12:30 verlängert, Arbeit beginnt erst 12:30, 10 min Arbeit gehen verloren.',
               abschnitte: tag('A 08:00 12:00 Portal', 'P 12:00 12:20', 'A 12:20 17:00 Portal') },
-            { titel: '5 min und später 30 min Pause', erwartung: 'Unverändert, die 5 min werden nicht verlängert.',
+            { titel: '5 min und später 30 min Pause', erwartung: 'Die 5 min entfallen (unter 15 min), alles danach rückt 5 min nach vorn: Arbeit 08:00–11:55, Pause 11:55–12:25, Arbeit 12:25–15:55.',
               abschnitte: tag('A 08:00 10:00 Portal', 'P 10:00 10:05', 'A 10:05 12:00 Portal', 'P 12:00 12:30', 'A 12:30 16:00 Portal') },
             { titel: 'Alle Pausen zu kurz (10 und 20 min)', erwartung: 'Die längere (12:30) wird auf 30 min verlängert, die 10 min bleiben.',
               abschnitte: tag('A 08:00 10:00 Portal', 'P 10:00 10:10', 'A 10:10 12:30 Portal', 'P 12:30 12:50', 'A 12:50 16:00 Portal') },
@@ -52,6 +52,8 @@
               abschnitte: tag('A 07:00 12:00 Portal', 'P 12:00 12:45', 'A 12:45 18:30 Portal') },
             { titel: 'Mehrere Maschinen: Abschnitt doppelt und überlappend', erwartung: 'Personio bekommt einen Arbeitsblock 14:53–17:30, nicht doppelt gezählt; keine Überschneidungs-Warnung.',
               abschnitte: tag('A 08:52 14:25 Portal', 'P 14:25 14:53', 'A 14:53 17:19 Portal', 'A 14:53 17:19 Portal', 'A 17:00 17:30 Allgemein') },
+            { titel: 'Pause unter 15 min (Tag aus Personio-Screenshot)', erwartung: 'Die 5-min-Pause 17:19–17:24 entfällt, die Arbeit danach rückt nach vorn: Arbeit 14:55–17:24 statt bis 17:29.',
+              abschnitte: tag('A 08:52 14:25 Portal', 'P 14:25 14:55', 'A 14:55 17:19 Portal', 'P 17:19 17:24', 'A 17:24 17:29 Allgemein') },
             { titel: 'Echter Tag 21.10. aus KanbanFlow', erwartung: 'Regelkonform, nur zusammengefasst und auf Minuten abgerundet: 8:24 h Arbeit wie in KanbanFlow.',
               abschnitte: tag('A 08:25:02 09:24:00 Allgemein', 'A 09:24:00 12:00:52 Virtual Machine Portal', 'P 12:00:52 12:44:57',
                               'A 12:44:57 12:57:18 Allgemein', 'A 12:57:18 17:33:32 Virtual Machine Portal') }

@@ -7,6 +7,7 @@
     const HOECHSTENS_AM_STUECK = 6 * 60;
     const HOECHSTENS_JE_TAG = 10 * 60;
     const LANGER_TAG_AB = 9 * 60;
+    const KUERZESTE_PAUSE = 15;   // Personio verwirft kürzere Pausenblöcke
 
     function minutenSeitMitternacht(zeitstempelLokal) {
         const stunden = Number(zeitstempelLokal.slice(11, 13));
@@ -57,6 +58,20 @@
             } else {
                 ergebnis.push({ ...b, aufgaben: b.aufgaben.slice() });
             }
+        }
+        return ergebnis;
+    }
+
+    // Pausen unter 15 min nimmt Personio nicht an: sie entfallen, alles Folgende rückt um ihre Länge nach vorn
+    function ohneKurzePausen(bloecke) {
+        const ergebnis = [];
+        let versatz = 0;
+        for (const b of bloecke) {
+            if (!istArbeit(b) && dauer(b) < KUERZESTE_PAUSE) {
+                versatz += dauer(b);
+                continue;
+            }
+            ergebnis.push({ ...b, von: b.von - versatz, bis: b.bis - versatz });
         }
         return ergebnis;
     }
@@ -139,7 +154,7 @@
     }
 
     function personioBloecke(abschnitte) {
-        const bloecke = gekappt(zusammengefasst(alsBloecke(abschnitte)));
+        const bloecke = gekappt(zusammengefasst(ohneKurzePausen(zusammengefasst(alsBloecke(abschnitte)))));
         const arbeit = arbeitszeit(bloecke);
         if (arbeit <= OHNE_PAUSE_ERLAUBT) return bloecke;
 
@@ -170,6 +185,9 @@
         const verstoesse = [];
         bloecke.forEach((b, i) => {
             if (b.bis <= b.von) verstoesse.push('Block ' + (i + 1) + ': Bis liegt nicht nach Von.');
+            else if (!istArbeit(b) && dauer(b) < KUERZESTE_PAUSE) {
+                verstoesse.push('Pause ' + alsUhrzeit(b.von) + '–' + alsUhrzeit(b.bis) + ' ist kürzer als 15 min; Personio nimmt sie nicht an.');
+            }
         });
         if (verstoesse.length > 0) return verstoesse;
 
