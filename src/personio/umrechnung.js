@@ -144,6 +144,62 @@
         return block.aufgaben.join(', ');
     }
 
+    function alsMinuten(uhrzeit) {
+        return Number(uhrzeit.slice(0, 2)) * 60 + Number(uhrzeit.slice(3, 5));
+    }
+
+    function alsDauer(minuten) {
+        return Math.floor(minuten / 60) + ':' + String(minuten % 60).padStart(2, '0') + ' h';
+    }
+
+    // Prüft von Hand bearbeitete Blöcke gegen die Personio-Regeln. Lücken zwischen Blöcken zählen wie Pausen.
+    // Liefert je Verstoß einen Satz; leer heißt regelkonform.
+    function regelverstoesse(bloecke) {
+        const verstoesse = [];
+        bloecke.forEach((b, i) => {
+            if (b.bis <= b.von) verstoesse.push('Block ' + (i + 1) + ': Bis liegt nicht nach Von.');
+        });
+        if (verstoesse.length > 0) return verstoesse;
+
+        const sortiert = bloecke.slice().sort((a, b) => a.von - b.von);
+        for (let i = 1; i < sortiert.length; i++) {
+            if (sortiert[i].von < sortiert[i - 1].bis) {
+                verstoesse.push('Blöcke ' + alsUhrzeit(sortiert[i - 1].von) + '–' + alsUhrzeit(sortiert[i - 1].bis)
+                    + ' und ' + alsUhrzeit(sortiert[i].von) + '–' + alsUhrzeit(sortiert[i].bis) + ' überschneiden sich.');
+            }
+        }
+        if (verstoesse.length > 0) return verstoesse;
+
+        const arbeit = arbeitszeit(sortiert);
+        if (arbeit > HOECHSTENS_JE_TAG) {
+            verstoesse.push('Mehr als 10 h Arbeit (' + alsDauer(arbeit) + ').');
+        }
+        if (arbeit <= OHNE_PAUSE_ERLAUBT) return verstoesse;
+
+        // Pausen = Pausenblöcke und Lücken, jeweils als zusammenhängende Spanne ohne Arbeit
+        const mindestpause = arbeit < LANGER_TAG_AB ? 30 : 45;
+        const arbeitsbloecke = sortiert.filter(istArbeit);
+        let laengstePause = 0;
+        let amStueck = 0;
+        let zuLangAmStueck = false;
+        arbeitsbloecke.forEach((b, i) => {
+            if (i > 0) {
+                const pause = b.von - arbeitsbloecke[i - 1].bis;
+                laengstePause = Math.max(laengstePause, pause);
+                if (pause >= mindestpause) amStueck = 0;
+            }
+            amStueck += dauer(b);
+            if (amStueck > HOECHSTENS_AM_STUECK && !zuLangAmStueck) {
+                zuLangAmStueck = true;
+                verstoesse.push('Mehr als 6 h am Stück ohne Pause von ' + mindestpause + ' min (bis ' + alsUhrzeit(b.bis) + ').');
+            }
+        });
+        if (laengstePause < mindestpause) {
+            verstoesse.push('Bei ' + alsDauer(arbeit) + ' Arbeit fehlt eine Pause von mindestens ' + mindestpause + ' min an einem Stück.');
+        }
+        return verstoesse;
+    }
+
     // Übergabe an den Personio-Teil über chrome.storage: Datum als Schlüssel, Zeiten als HH:MM
     function personioExport(datum, abschnitte) {
         return {
@@ -152,7 +208,7 @@
         };
     }
 
-    const api = { personioBloecke, personioExport, alsUhrzeit, kommentar, arbeitszeit };
+    const api = { personioBloecke, personioExport, regelverstoesse, alsUhrzeit, alsMinuten, kommentar, arbeitszeit };
 
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = api;

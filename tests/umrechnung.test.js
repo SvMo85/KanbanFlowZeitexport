@@ -1,6 +1,6 @@
 ﻿const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { personioBloecke, alsUhrzeit, kommentar, arbeitszeit } = require('../src/personio/umrechnung.js');
+const { personioBloecke, regelverstoesse, alsUhrzeit, alsMinuten, kommentar, arbeitszeit } = require('../src/personio/umrechnung.js');
 
 // Abschnitte wie aus tagesabschnitte(): "A 08:00 12:00 Aufgabe" bzw. "P 12:00 12:30"
 function tag(...zeilen) {
@@ -84,6 +84,63 @@ test('Wenn_mehr_als_10_h_Arbeit_dann_bei_10_h_gekappt', () => {
 
     assert.deepEqual(lesbar(bloecke), ['A 07:00 12:00', 'P 12:00 12:45', 'A 12:45 17:45']);
     assert.equal(arbeitszeit(bloecke), 10 * 60);
+});
+
+// Bearbeitete Blöcke: "A 08:00 12:00" bzw. "P 12:00 12:30", Zeiten in Minuten
+function bearbeitet(...zeilen) {
+    return zeilen.map(z => {
+        const [art, von, bis] = z.split(' ');
+        return { art: art === 'A' ? 'Arbeit' : 'Pause', von: alsMinuten(von), bis: alsMinuten(bis) };
+    });
+}
+
+test('Wenn_bearbeitete_Bloecke_regelkonform_dann_keine_Verstoesse', () => {
+    assert.deepEqual(regelverstoesse(bearbeitet('A 08:00 12:00', 'P 12:00 12:30', 'A 12:30 17:00')), []);
+});
+
+test('Wenn_Bis_vor_Von_dann_Verstoss_mit_Blocknummer', () => {
+    assert.deepEqual(regelverstoesse(bearbeitet('A 08:00 12:00', 'P 12:30 12:00')), ['Block 2: Bis liegt nicht nach Von.']);
+});
+
+test('Wenn_Bloecke_sich_ueberschneiden_dann_Verstoss_mit_beiden_Zeitraeumen', () => {
+    const verstoesse = regelverstoesse(bearbeitet('A 08:00 12:00', 'A 11:30 13:00'));
+
+    assert.deepEqual(verstoesse, ['Blöcke 08:00–12:00 und 11:30–13:00 überschneiden sich.']);
+});
+
+test('Wenn_mehr_als_10_h_Arbeit_dann_Verstoss', () => {
+    const verstoesse = regelverstoesse(bearbeitet('A 06:00 12:00', 'P 12:00 12:45', 'A 12:45 17:00'));
+
+    assert.ok(verstoesse.includes('Mehr als 10 h Arbeit (10:15 h).'));   // 6:00 + 4:15
+});
+
+test('Wenn_7_h_ohne_Pause_dann_Verstoss_6_h_am_Stueck_und_fehlende_Pause', () => {
+    const verstoesse = regelverstoesse(bearbeitet('A 08:00 15:00'));
+
+    assert.deepEqual(verstoesse, [
+        'Mehr als 6 h am Stück ohne Pause von 30 min (bis 15:00).',
+        'Bei 7:00 h Arbeit fehlt eine Pause von mindestens 30 min an einem Stück.'
+    ]);
+});
+
+test('Wenn_Luecke_von_30_min_ohne_Pausenblock_dann_zaehlt_sie_als_Pause', () => {
+    assert.deepEqual(regelverstoesse(bearbeitet('A 08:00 12:00', 'A 12:30 16:00')), []);
+});
+
+test('Wenn_nur_20_min_Pause_bei_8_h_dann_Verstoss_6_h_am_Stueck_und_fehlende_Pause', () => {
+    const verstoesse = regelverstoesse(bearbeitet('A 08:00 12:00', 'P 12:00 12:20', 'A 12:20 16:20'));
+
+    assert.deepEqual(verstoesse, [
+        'Mehr als 6 h am Stück ohne Pause von 30 min (bis 16:20).',   // 20 min unterbrechen nicht
+        'Bei 8:00 h Arbeit fehlt eine Pause von mindestens 30 min an einem Stück.'
+    ]);
+});
+
+test('Wenn_Auto_Ergebnis_geprueft_wird_dann_ist_es_regelkonform', () => {
+    // was die Umrechnung liefert, muss die Prüfung bestehen
+    const bloecke = personioBloecke(tag('A 07:00 12:00 X', 'P 12:00 12:10', 'A 12:10 18:30 X'));
+
+    assert.deepEqual(regelverstoesse(bloecke), []);
 });
 
 test('Wenn_Tag_aus_KanbanFlow_vom_21_10_dann_bleibt_er_regelkonform_unveraendert', () => {

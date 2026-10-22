@@ -55,9 +55,9 @@
         return knopf;
     }
 
-    function zeigeTag(inhalt, boardDaten, datum, jetzt) {
+    function zeigeTag(inhalt, boardDaten, datum, jetzt, beiAenderung) {
         const abschnitte = kf.tagesabschnitte(boardDaten, datum, jetzt);
-        inhalt.replaceChildren(globalThis.KfVorschau.inhalt(abschnitte));
+        inhalt.replaceChildren(globalThis.KfVorschau.inhalt(abschnitte, beiAenderung));
     }
 
     function zeigeDialog(boardDaten) {
@@ -78,42 +78,55 @@
             const auswahl = element('select', 'kfze-auswahl');
             tage.forEach(datum => auswahl.appendChild(new Option(tagAnzeige(datum), datum)));
             dialog.appendChild(auswahl);
-            zeigeTag(inhalt, boardDaten, tage[0], jetzt);
 
             uebernehmen = knopfMitPersonioLogo('Für Personio übernehmen');
             const beschriftung = uebernehmen.lastChild;
+            let sollStand = { bloecke: [], verstoesse: [] };   // bearbeiteter Personio-Stand aus der Vorschau
+            let bereitliegend = null;                           // Export, der in chrome.storage zur Übergabe liegt
 
-            // Ausgegraut, solange genau dieser Tag zur Übergabe bereitliegt; liegt ein anderer Tag bereit, warnen
-            const zeigeUebergabeZustand = async () => {
-                const { personioExport } = await chrome.storage.local.get('personioExport');
-                const diesesTag = personioExport && personioExport.datum === auswahl.value;
-                uebernehmen.disabled = Boolean(diesesTag);
-                beschriftung.textContent = diesesTag ? 'Übernommen' : 'Für Personio übernehmen';
-                if (diesesTag) {
+            // Gesperrt bei Regelverstoß; ausgegraut, solange genau dieser Stand bereitliegt; sonst warnen, was ersetzt wird
+            const zeigeUebergabeZustand = () => {
+                const hatVerstoesse = sollStand.verstoesse.length > 0;
+                const diesesTag = Boolean(bereitliegend) && bereitliegend.datum === auswahl.value;
+                const derselbeStand = diesesTag && JSON.stringify(bereitliegend.bloecke) === JSON.stringify(sollStand.bloecke);
+                uebernehmen.disabled = hatVerstoesse || derselbeStand;
+                beschriftung.textContent = derselbeStand ? 'Übernommen' : 'Für Personio übernehmen';
+                if (hatVerstoesse) {
+                    status.className = 'kfze-warnung';
+                    status.textContent = 'Übernehmen gesperrt: Die Personio-Zeiten verstoßen gegen die Regeln (siehe oben).';
+                } else if (derselbeStand) {
                     status.className = 'kfze-info';
                     status.textContent = 'Liegt zur Übergabe bereit. Jetzt in Personio „Zeitexport einfügen" klicken.';
-                } else if (personioExport) {
+                } else if (diesesTag) {
                     status.className = 'kfze-warnung';
-                    status.textContent = 'Zur Übergabe liegt noch der ' + tagAnzeige(personioExport.datum) + ' bereit. Übernehmen ersetzt ihn.';
+                    status.textContent = 'Für diesen Tag liegt ein anderer Stand zur Übergabe bereit. Übernehmen ersetzt ihn.';
+                } else if (bereitliegend) {
+                    status.className = 'kfze-warnung';
+                    status.textContent = 'Zur Übergabe liegt noch der ' + tagAnzeige(bereitliegend.datum) + ' bereit. Übernehmen ersetzt ihn.';
                 } else {
                     status.className = 'kfze-hinweis';
                     status.textContent = '';
                 }
             };
-
-            auswahl.addEventListener('change', () => {
-                zeigeTag(inhalt, boardDaten, auswahl.value, jetzt);
+            const ladeBereitliegend = async () => {
+                bereitliegend = (await chrome.storage.local.get('personioExport')).personioExport || null;
+                zeigeUebergabeZustand();
+            };
+            const zeigeGewaehltenTag = () => zeigeTag(inhalt, boardDaten, auswahl.value, jetzt, stand => {
+                sollStand = stand;
                 zeigeUebergabeZustand();
             });
+
+            auswahl.addEventListener('change', zeigeGewaehltenTag);
             uebernehmen.addEventListener('click', async () => {
-                const abschnitte = kf.tagesabschnitte(boardDaten, auswahl.value, jetzt);
-                await chrome.storage.local.set({ personioExport: globalThis.KfPersonioUmrechnung.personioExport(auswahl.value, abschnitte) });
+                await chrome.storage.local.set({ personioExport: { datum: auswahl.value, bloecke: sollStand.bloecke } });
             });
             beiSpeicheraenderung = (aenderungen, bereich) => {
-                if (bereich === 'local' && 'personioExport' in aenderungen) zeigeUebergabeZustand();
+                if (bereich === 'local' && 'personioExport' in aenderungen) ladeBereitliegend();
             };
             chrome.storage.onChanged.addListener(beiSpeicheraenderung);
-            zeigeUebergabeZustand();
+            zeigeGewaehltenTag();
+            ladeBereitliegend();
         }
         dialog.appendChild(inhalt);
         dialog.appendChild(status);

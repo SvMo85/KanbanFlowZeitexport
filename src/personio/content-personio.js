@@ -87,17 +87,22 @@
         return [...formular.querySelectorAll('[role=spinbutton]')].some(s => s.getAttribute('aria-valuenow') !== null);
     }
 
-    // Blöcke passend zum Export herstellen: fehlende per "+ Arbeit"/"+ Pause" anhängen, überzählige hinten löschen
+    // Blöcke passend zum Export herstellen: die vorhandenen Blöcke bis zur ersten abweichenden Art behalten,
+    // den Rest hinten löschen und per "+ Arbeit"/"+ Pause" in der Reihenfolge des Exports neu anhängen
     async function stelleBloeckeHer(formular, bloecke) {
-        for (let i = blockarten(formular).length; i < bloecke.length; i++) {
-            const knopf = bloecke[i].art === 'Arbeit' ? 'timecard-add-work' : 'timecard-add-break';
-            formular.querySelector('[data-test-id="' + knopf + '"]').click();
-            await warteAuf(() => blockarten(formular).length > i);
-        }
-        while (blockarten(formular).length > bloecke.length) {
+        const vorhanden = blockarten(formular);
+        let behalten = 0;
+        while (behalten < vorhanden.length && behalten < bloecke.length && vorhanden[behalten] === bloecke[behalten].art) behalten++;
+
+        while (blockarten(formular).length > behalten) {
             const letzter = blockarten(formular).length - 1;
             formular.querySelector('[data-test-id="timecard-delete-period-' + letzter + '"]').click();
             await warteAuf(() => blockarten(formular).length === letzter);
+        }
+        for (let i = behalten; i < bloecke.length; i++) {
+            const knopf = bloecke[i].art === 'Arbeit' ? 'timecard-add-work' : 'timecard-add-break';
+            formular.querySelector('[data-test-id="' + knopf + '"]').click();
+            await warteAuf(() => blockarten(formular).length > i);
         }
         const arten = blockarten(formular);
         bloecke.forEach((b, i) => {

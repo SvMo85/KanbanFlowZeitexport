@@ -105,6 +105,53 @@
     font-style: italic;
 }
 
+/* Bearbeitbare Personio-Tabelle */
+.kfze-zeitfeld,
+.kfze-artfeld,
+.kfze-kommentarfeld {
+    font: 13px/1.2 system-ui, sans-serif;
+    padding: 2px 4px;
+    border: 1px solid #cbd5e0;
+    border-radius: 3px;
+}
+
+.kfze-kommentarfeld {
+    width: 100%;
+    min-width: 180px;
+    box-sizing: border-box;
+}
+
+.kfze-kommentarfeld:disabled {
+    background: #f7fafc;
+    border-color: #edf2f7;
+}
+
+.kfze-knopf-klein {
+    padding: 4px 10px;
+    font-size: 13px;
+}
+
+.kfze-knopf-leise {
+    background: #fff;
+    border-color: #cbd5e0;
+    color: #4a5568;
+}
+
+.kfze-knopf-auto {
+    margin-left: auto;
+    background: #fff;
+    border-color: #2b6cb0;
+    color: #2b6cb0;
+}
+
+.kfze-teil .kfze-knoepfe {
+    margin-top: 8px;
+}
+
+.kfze-teil .kfze-warnung {
+    margin: 6px 0 0;
+}
+
 .kfze-strahlen {
     display: grid;
     grid-template-columns: auto 1fr;

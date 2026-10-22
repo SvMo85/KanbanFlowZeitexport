@@ -1,5 +1,6 @@
 ﻿// Baut die Vorschau eines Tages: Zeitstrahlen IST (KanbanFlow) und SOLL (Personio) auf gemeinsamer
-// Stundenachse, darunter je eine Tabelle. Genutzt vom Content-Script und von tests/faelle.html.
+// Stundenachse, darunter die KanbanFlow-Tabelle und die bearbeitbare Personio-Tabelle.
+// Genutzt vom Content-Script und von tests/faelle.html.
 (function (global) {
     'use strict';
 
@@ -100,20 +101,112 @@
                 .forEach(t => zeile.insertCell().textContent = t);
         });
         teil.appendChild(tabelle);
-
-        const summe = art => bloecke.filter(b => b.art === art).reduce((s, b) => s + (b.bis - b.von), 0);
-        teil.appendChild(element('p', 'kfze-summe', 'Arbeit ' + dauerAnzeige(summe('Arbeit')) + ' h · Pause ' + dauerAnzeige(summe('Pause')) + ' h'));
+        teil.appendChild(summeFuer(bloecke));
         return teil;
     }
 
-    function inhalt(abschnitte) {
+    function summeFuer(bloecke) {
+        const summe = art => bloecke.filter(b => b.art === art).reduce((s, b) => s + (b.bis - b.von), 0);
+        return element('p', 'kfze-summe', 'Arbeit ' + dauerAnzeige(summe('Arbeit')) + ' h · Pause ' + dauerAnzeige(summe('Pause')) + ' h');
+    }
+
+    function knopf(text, beiKlick, klasse) {
+        const k = element('button', 'kfze-knopf kfze-knopf-klein' + (klasse ? ' ' + klasse : ''), text);
+        k.type = 'button';
+        k.addEventListener('click', beiKlick);
+        return k;
+    }
+
+    function zeitfeld(minuten, beiAenderung) {
+        const feld = element('input', 'kfze-zeitfeld');
+        feld.type = 'time';
+        feld.value = uhrzeit(minuten);
+        feld.addEventListener('change', () => { if (feld.value) beiAenderung(umrechnung.alsMinuten(feld.value)); });
+        return feld;
+    }
+
+    // Die SOLL-Tabelle zum Bearbeiten: je Zeile Art, Von, Bis, Dauer, Kommentar, Löschen
+    function sollZeile(b, beiAenderung, beiLoeschen) {
+        const zeile = element('tr', b.art === 'Pause' ? 'kfze-pause' : '');
+        const dauer = element('td', '', dauerAnzeige(b.bis - b.von));
+        const zeigeDauer = () => { dauer.textContent = dauerAnzeige(b.bis - b.von); };
+
+        const art = element('select', 'kfze-artfeld');
+        ['Arbeit', 'Pause'].forEach(a => art.appendChild(new Option(a, a, false, a === b.art)));
+        const kommentar = element('input', 'kfze-kommentarfeld');
+        kommentar.type = 'text';
+        kommentar.value = b.text;
+        kommentar.disabled = b.art === 'Pause';
+        art.addEventListener('change', () => {
+            b.art = art.value;
+            zeile.className = b.art === 'Pause' ? 'kfze-pause' : '';
+            kommentar.disabled = b.art === 'Pause';
+            beiAenderung();
+        });
+        kommentar.addEventListener('input', () => { b.text = kommentar.value; beiAenderung(); });
+
+        const zelle = inhaltEl => { const td = element('td'); td.appendChild(inhaltEl); return td; };
+        zeile.append(
+            zelle(art),
+            zelle(zeitfeld(b.von, m => { b.von = m; zeigeDauer(); beiAenderung(); })),
+            zelle(zeitfeld(b.bis, m => { b.bis = m; zeigeDauer(); beiAenderung(); })),
+            dauer,
+            zelle(kommentar),
+            zelle(knopf('Löschen', beiLoeschen, 'kfze-knopf-leise')));
+        return zeile;
+    }
+
+    // Was an Personio geht: nach Beginn sortiert, Zeiten als HH:MM, Kommentar nur bei Arbeit
+    function alsExportBloecke(soll) {
+        return soll.slice().sort((a, b) => a.von - b.von)
+            .map(b => ({ art: b.art, von: uhrzeit(b.von), bis: uhrzeit(b.bis), kommentar: b.art === 'Arbeit' ? b.text : '' }));
+    }
+
+    // beiAenderung (optional) erhält nach jeder Änderung { bloecke, verstoesse } - die bearbeiteten SOLL-Blöcke
+    // im Übergabeformat und die Regelverstöße; ohne Verstöße darf übernommen werden
+    function inhalt(abschnitte, beiAenderung) {
         const ist = istBloecke(abschnitte);
-        const soll = personioBloecke(abschnitte);
+        let soll = personioBloecke(abschnitte);
 
         const el = element('div', 'kfze-vorschau');
-        el.appendChild(strahlenFuer(ist, soll));
-        el.appendChild(tabelleFuer('KanbanFlow', 'Aufgabe', ist));
-        el.appendChild(tabelleFuer('Personio', 'Kommentar', soll));
+        const strahlenPlatz = element('div');
+        const sollTeil = element('div', 'kfze-teil');
+        const rumpf = element('tbody');
+        const summenPlatz = element('div');
+        const verstossPlatz = element('div');
+
+        const zeigeStand = () => {
+            strahlenPlatz.replaceChildren(strahlenFuer(ist, soll));
+            summenPlatz.replaceChildren(summeFuer(soll));
+            const verstoesse = umrechnung.regelverstoesse(soll);
+            verstossPlatz.replaceChildren(...verstoesse.map(v => element('p', 'kfze-warnung', v)));
+            if (beiAenderung) beiAenderung({ bloecke: alsExportBloecke(soll), verstoesse });
+        };
+        const zeichneSoll = () => {
+            rumpf.replaceChildren(...soll.map(b => sollZeile(b, zeigeStand, () => { soll = soll.filter(x => x !== b); zeichneSoll(); })));
+            zeigeStand();
+        };
+        const haengeAn = art => {
+            const ende = soll.reduce((m, b) => Math.max(m, b.bis), 0) || 8 * 60;
+            soll.push({ art, von: ende, bis: Math.min(ende + 30, 24 * 60 - 1), text: '', laeuft: false });
+            zeichneSoll();
+        };
+
+        const tabelle = element('table', 'kfze-tabelle');
+        const kopf = tabelle.createTHead().insertRow();
+        ['Art', 'Von', 'Bis', 'Dauer', 'Kommentar', ''].forEach(t => kopf.appendChild(element('th', '', t)));
+        tabelle.appendChild(rumpf);
+
+        const werkzeuge = element('div', 'kfze-knoepfe');
+        werkzeuge.append(
+            knopf('+ Arbeit', () => haengeAn('Arbeit')),
+            knopf('+ Pause', () => haengeAn('Pause')),
+            knopf('Auto', () => { soll = personioBloecke(abschnitte); zeichneSoll(); }, 'kfze-knopf-auto'));
+        werkzeuge.lastChild.title = 'Bearbeitungen verwerfen und die Zeiten neu aus KanbanFlow berechnen';
+
+        sollTeil.append(element('h3', '', 'Personio'), tabelle, werkzeuge, summenPlatz, verstossPlatz);
+        el.append(strahlenPlatz, tabelleFuer('KanbanFlow', 'Aufgabe', ist), sollTeil);
+        zeichneSoll();
         return el;
     }
 
