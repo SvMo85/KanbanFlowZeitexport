@@ -1,7 +1,7 @@
 ﻿const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { tagesindex } = require('../src/personio/tagauswahl.js');
-const { personioExport } = require('../src/personio/umrechnung.js');
+const { personioExport, gleicheUebergabeBloecke } = require('../src/personio/umrechnung.js');
 
 const MONATSANSICHT_OKTOBER = 'https://mahredv.app.personio.com/attendance/employee/31589351?hideEmployeeHeader=true&viewMode=monthly&startDate=2026-10-01';
 
@@ -21,6 +21,21 @@ test('Wenn_nicht_Monatsansicht_dann_Hinweis', () => {
     const wochenansicht = MONATSANSICHT_OKTOBER.replace('viewMode=monthly', 'viewMode=weekly');
 
     assert.match(tagesindex('2026-10-22', wochenansicht).fehler, /Monatsansicht/);
+});
+
+test('Wenn_chrome_storage_die_Felder_alphabetisch_zurueckgibt_dann_gilt_der_Stand_als_gleich', () => {
+    const angezeigt = [{ art: 'Arbeit', von: '08:52', bis: '12:00', kommentar: 'Portal' }];
+    const ausDemSpeicher = [{ art: 'Arbeit', bis: '12:00', kommentar: 'Portal', von: '08:52' }];   // wie chrome.storage sie liefert
+
+    assert.notEqual(JSON.stringify(angezeigt), JSON.stringify(ausDemSpeicher));   // der alte Vergleich scheiterte daran
+    assert.equal(gleicheUebergabeBloecke(angezeigt, ausDemSpeicher), true);
+});
+
+test('Wenn_eine_Zeit_abweicht_dann_gilt_der_Stand_als_anders', () => {
+    const angezeigt = [{ art: 'Arbeit', von: '08:52', bis: '12:00', kommentar: 'Portal' }];
+    const ausDemSpeicher = [{ art: 'Arbeit', bis: '12:15', kommentar: 'Portal', von: '08:52' }];
+
+    assert.equal(gleicheUebergabeBloecke(angezeigt, ausDemSpeicher), false);
 });
 
 test('Wenn_Export_erstellt_dann_Datum_und_Bloecke_als_HH_MM_mit_Kommentar', () => {

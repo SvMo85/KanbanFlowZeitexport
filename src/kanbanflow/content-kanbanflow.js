@@ -88,7 +88,7 @@
             const zeigeUebergabeZustand = () => {
                 const hatVerstoesse = sollStand.verstoesse.length > 0;
                 const diesesTag = Boolean(bereitliegend) && bereitliegend.datum === auswahl.value;
-                const derselbeStand = diesesTag && JSON.stringify(bereitliegend.bloecke) === JSON.stringify(sollStand.bloecke);
+                const derselbeStand = diesesTag && globalThis.KfPersonioUmrechnung.gleicheUebergabeBloecke(bereitliegend.bloecke, sollStand.bloecke);
                 uebernehmen.disabled = hatVerstoesse || derselbeStand;
                 beschriftung.textContent = derselbeStand ? 'Übernommen' : 'Für Personio übernehmen';
                 if (hatVerstoesse) {

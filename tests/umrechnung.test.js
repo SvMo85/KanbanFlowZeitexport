@@ -61,18 +61,31 @@ test('Wenn_einzige_Pause_zu_kurz_dann_verlaengert_sie_sich_in_die_folgende_Arbei
     assert.equal(arbeitszeit(bloecke), 8 * 60 + 30);   // 10 min Arbeit verloren
 });
 
-test('Wenn_5_min_und_spaeter_30_min_Pause_dann_werden_die_5_min_nicht_verlaengert', () => {
+test('Wenn_5_min_und_spaeter_30_min_Pause_dann_entfallen_die_5_min_und_alles_rueckt_nach_vorn', () => {
     const abschnitte = tag('A 08:00 10:00 X', 'P 10:00 10:05', 'A 10:05 12:00 X', 'P 12:00 12:30', 'A 12:30 16:00 X');
 
-    assert.deepEqual(lesbar(personioBloecke(abschnitte)),
-        ['A 08:00 10:00', 'P 10:00 10:05', 'A 10:05 12:00', 'P 12:00 12:30', 'A 12:30 16:00']);
+    assert.deepEqual(lesbar(personioBloecke(abschnitte)), ['A 08:00 11:55', 'P 11:55 12:25', 'A 12:25 15:55']);
+});
+
+test('Wenn_Pause_unter_15_min_dann_entfaellt_sie_und_Folgendes_rueckt_nach_vorn', () => {
+    // Tag aus dem Personio-Screenshot: 5-min-Pause 17:19-17:24
+    const bloecke = personioBloecke(tag('A 08:52 14:25 X', 'P 14:25 14:55', 'A 14:55 17:19 X', 'P 17:19 17:24', 'A 17:24 17:29 Y'));
+
+    assert.deepEqual(lesbar(bloecke), ['A 08:52 14:25', 'P 14:25 14:55', 'A 14:55 17:24']);
+    assert.equal(arbeitszeit(bloecke), 5 * 60 + 33 + 2 * 60 + 29);   // Arbeitszeit unverändert, nur verschoben
 });
 
 test('Wenn_alle_Pausen_zu_kurz_dann_wird_die_laengste_verlaengert', () => {
-    const abschnitte = tag('A 08:00 10:00 X', 'P 10:00 10:10', 'A 10:10 12:30 X', 'P 12:30 12:50', 'A 12:50 16:00 X');
+    const abschnitte = tag('A 08:00 10:00 X', 'P 10:00 10:15', 'A 10:15 12:30 X', 'P 12:30 12:50', 'A 12:50 16:00 X');
 
     assert.deepEqual(lesbar(personioBloecke(abschnitte)),
-        ['A 08:00 10:00', 'P 10:00 10:10', 'A 10:10 12:30', 'P 12:30 13:00', 'A 13:00 16:00']);   // 20 min auf 30 min
+        ['A 08:00 10:00', 'P 10:00 10:15', 'A 10:15 12:30', 'P 12:30 13:00', 'A 13:00 16:00']);   // 20 min auf 30 min, 15 min bleiben
+});
+
+test('Wenn_bearbeitete_Pause_unter_15_min_dann_Verstoss', () => {
+    const verstoesse = regelverstoesse(bearbeitet('A 08:00 12:00', 'P 12:00 12:10', 'A 12:10 13:00'));
+
+    assert.deepEqual(verstoesse, ['Pause 12:00–12:10 ist kürzer als 15 min; Personio nimmt sie nicht an.']);
 });
 
 test('Wenn_Mindestpause_zu_spaet_dann_an_die_6_h_Grenze_vorgezogen', () => {

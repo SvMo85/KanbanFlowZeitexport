@@ -242,6 +242,13 @@
         return neu;
     }
 
+    // Vergleich zweier Übergabestände Feld für Feld - nicht per JSON-Text, denn chrome.storage liefert
+    // die Felder alphabetisch sortiert zurück ({ art, bis, kommentar, von })
+    function gleicheUebergabeBloecke(a, b) {
+        return a.length === b.length && a.every((x, i) =>
+            x.art === b[i].art && x.von === b[i].von && x.bis === b[i].bis && (x.kommentar || '') === (b[i].kommentar || ''));
+    }
+
     // Übergabe an den Personio-Teil über chrome.storage: Datum als Schlüssel, Zeiten als HH:MM
     function personioExport(datum, abschnitte) {
         return {
@@ -250,7 +257,8 @@
         };
     }
 
-    const api = { personioBloecke, personioExport, regelverstoesse, verschiebeGrenze, alsUhrzeit, alsMinuten, kommentar, arbeitszeit, dauerOhneUeberlappung };
+    const api = { personioBloecke, personioExport, regelverstoesse, verschiebeGrenze, gleicheUebergabeBloecke,
+        alsUhrzeit, alsMinuten, kommentar, arbeitszeit, dauerOhneUeberlappung };
 
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = api;
