@@ -86,8 +86,8 @@
         return el;
     }
 
-    function tabelleFuer(titel, letzteSpalte, bloecke) {
-        const teil = element('div', 'kfze-teil');
+    function tabelleFuer(titel, letzteSpalte, bloecke, kachelKlasse) {
+        const teil = element('div', 'kfze-teil kfze-kachel ' + kachelKlasse);
         teil.appendChild(element('h3', '', titel));
 
         const tabelle = element('table', 'kfze-tabelle');
@@ -175,7 +175,7 @@
 
         const el = element('div', 'kfze-vorschau');
         const strahlenPlatz = element('div');
-        const sollTeil = element('div', 'kfze-teil');
+        const sollTeil = element('div', 'kfze-teil kfze-kachel kfze-kachel-personio');
         const rumpf = element('tbody');
         const summenPlatz = element('div');
         const verstossPlatz = element('div');
@@ -225,7 +225,7 @@
         werkzeuge.lastChild.title = 'Bearbeitungen verwerfen und die Zeiten neu aus KanbanFlow berechnen';
 
         sollTeil.append(element('h3', '', 'Personio'), tabelle, werkzeuge, summenPlatz, verstossPlatz);
-        el.append(strahlenPlatz, tabelleFuer('KanbanFlow', 'Aufgabe', ist), sollTeil);
+        el.append(strahlenPlatz, tabelleFuer('KanbanFlow', 'Aufgabe', ist, 'kfze-kachel-kanbanflow'), sollTeil);
         zeichneSoll();
         return el;
     }
