@@ -76,7 +76,7 @@
             schliessen.textContent = 'Schließen';
             schliessen.addEventListener('click', () => hintergrund.remove());
 
-            dialog.append(titel, erwartung, KfVorschau.inhalt(fall.abschnitte), schliessen);
+            dialog.append(titel, erwartung, KfVorschau.inhalt(fall.abschnitte, null, { uebertragen: true, beiUmschalten: () => {} }), schliessen);
             hintergrund.appendChild(dialog);
             hintergrund.addEventListener('click', e => { if (e.target === hintergrund) hintergrund.remove(); });
             document.body.appendChild(hintergrund);

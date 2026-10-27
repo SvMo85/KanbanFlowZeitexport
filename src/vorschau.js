@@ -129,23 +129,25 @@
     // Zeitänderungen gehen an beiZeit(feld, minuten), weil sie angrenzende Blöcke mitziehen können.
     // Die Zeile merkt sich ihre Felder (zeile.felder), damit Zeitänderungen ohne Neuzeichnen
     // nachgetragen werden können - Neuzeichnen nähme dem Feld unter dem Cursor den Fokus.
-    function sollZeile(b, beiAenderung, beiZeit, beiLoeschen) {
+    // kommentareAktiv() sagt, ob Kommentare übertragen werden; sonst ist das Feld gesperrt.
+    function sollZeile(b, beiAenderung, beiZeit, beiLoeschen, kommentareAktiv) {
         const zeile = element('tr', b.art === 'Pause' ? 'kfze-pause' : '');
         const dauer = element('td', '', dauerAnzeige(b.bis - b.von));
         const von = zeitfeld(b.von, m => beiZeit('von', m));
         const bis = zeitfeld(b.bis, m => beiZeit('bis', m));
-        zeile.felder = { von, bis, dauer };
 
         const art = element('select', 'kfze-artfeld');
         ['Arbeit', 'Pause'].forEach(a => art.appendChild(new Option(a, a, false, a === b.art)));
         const kommentar = element('input', 'kfze-kommentarfeld');
         kommentar.type = 'text';
         kommentar.value = b.text;
-        kommentar.disabled = b.art === 'Pause';
+        const sperreKommentar = () => { kommentar.disabled = b.art === 'Pause' || !kommentareAktiv(); };
+        sperreKommentar();
+        zeile.felder = { von, bis, dauer, sperreKommentar };
         art.addEventListener('change', () => {
             b.art = art.value;
             zeile.className = b.art === 'Pause' ? 'kfze-pause' : '';
-            kommentar.disabled = b.art === 'Pause';
+            sperreKommentar();
             beiAenderung();
         });
         kommentar.addEventListener('input', () => { b.text = kommentar.value; beiAenderung(); });
@@ -161,6 +163,16 @@
         return zeile;
     }
 
+    function kommentarSchalter(an, beiUmschalten) {
+        const haken = element('input');
+        haken.type = 'checkbox';
+        haken.checked = an;
+        haken.addEventListener('change', () => beiUmschalten(haken.checked));
+        const schalter = element('label', 'kfze-schalter');
+        schalter.append(haken, document.createTextNode('Kommentare übertragen'));
+        return schalter;
+    }
+
     // Was an Personio geht: nach Beginn sortiert, Zeiten als HH:MM, Kommentar nur bei Arbeit
     function alsExportBloecke(soll) {
         return soll.slice().sort((a, b) => a.von - b.von)
@@ -169,10 +181,12 @@
 
     // beiAenderung (optional) erhält nach jeder Änderung { bloecke, verstoesse } - die bearbeiteten SOLL-Blöcke
     // im Übergabeformat und die Regelverstöße; ohne Verstöße darf übernommen werden.
-    // kopfZusatz (optional) steht rechtsbündig in der Kopfzeile der Personio-Kachel
-    function inhalt(abschnitte, beiAenderung, kopfZusatz) {
+    // kommentare (optional) { uebertragen, beiUmschalten(wert) } zeigt rechtsbündig in der Kopfzeile der
+    // Personio-Kachel den Schalter "Kommentare übertragen"; aus heißt: Kommentarfelder gesperrt, Übergabe ohne Kommentare
+    function inhalt(abschnitte, beiAenderung, kommentare) {
         const ist = istBloecke(abschnitte);
         let soll = personioBloecke(abschnitte);
+        let kommentareUebertragen = kommentare ? kommentare.uebertragen : true;
 
         const el = element('div', 'kfze-vorschau');
         const strahlenPlatz = element('div');
@@ -186,12 +200,14 @@
             summenPlatz.replaceChildren(summeFuer(soll));
             const verstoesse = umrechnung.regelverstoesse(soll);
             verstossPlatz.replaceChildren(...verstoesse.map(v => element('p', 'kfze-warnung', v)));
-            if (beiAenderung) beiAenderung({ bloecke: alsExportBloecke(soll), verstoesse });
+            const bloecke = alsExportBloecke(soll);
+            if (beiAenderung) beiAenderung({ bloecke: kommentareUebertragen ? bloecke : umrechnung.ohneKommentare(bloecke), verstoesse });
         };
         const zeichneSoll = () => {
             rumpf.replaceChildren(...soll.map((b, index) => sollZeile(b, zeigeStand,
                 (feld, minuten) => aendereZeit(index, feld, minuten),
-                () => { soll = soll.filter(x => x !== b); zeichneSoll(); })));
+                () => { soll = soll.filter(x => x !== b); zeichneSoll(); },
+                () => kommentareUebertragen)));
             zeigeStand();
         };
         // Zeit geändert: Werte in die vorhandenen Blöcke übernehmen (Nachbar wandert mit) und nur die
@@ -227,7 +243,12 @@
 
         const sollKopf = element('div', 'kfze-kachel-kopf');
         sollKopf.appendChild(element('h3', '', 'Personio'));
-        if (kopfZusatz) sollKopf.appendChild(kopfZusatz);
+        if (kommentare) sollKopf.appendChild(kommentarSchalter(kommentareUebertragen, wert => {
+            kommentareUebertragen = wert;
+            [...rumpf.children].forEach(zeile => zeile.felder.sperreKommentar());
+            zeigeStand();
+            kommentare.beiUmschalten(wert);
+        }));
 
         sollTeil.append(sollKopf, tabelle, werkzeuge, summenPlatz, verstossPlatz);
         el.append(strahlenPlatz, tabelleFuer('KanbanFlow', 'Aufgabe', ist, 'kfze-kachel-kanbanflow'), sollTeil);
