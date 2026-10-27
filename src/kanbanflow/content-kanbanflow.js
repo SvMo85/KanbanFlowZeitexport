@@ -55,9 +55,9 @@
         return knopf;
     }
 
-    function zeigeTag(inhalt, boardDaten, datum, jetzt, beiAenderung) {
+    function zeigeTag(inhalt, boardDaten, datum, jetzt, beiAenderung, kopfZusatz) {
         const abschnitte = kf.tagesabschnitte(boardDaten, datum, jetzt);
-        inhalt.replaceChildren(globalThis.KfVorschau.inhalt(abschnitte, beiAenderung));
+        inhalt.replaceChildren(globalThis.KfVorschau.inhalt(abschnitte, beiAenderung, kopfZusatz));
     }
 
     function zeigeDialog(boardDaten) {
@@ -84,11 +84,21 @@
             let sollStand = { bloecke: [], verstoesse: [] };   // bearbeiteter Personio-Stand aus der Vorschau
             let bereitliegend = null;                           // Export, der in chrome.storage zur Übergabe liegt
 
+            // Ob Kommentare mit nach Personio gehen; der Zustand bleibt über Sitzungen in chrome.storage erhalten
+            const mitKommentaren = element('input');
+            mitKommentaren.type = 'checkbox';
+            mitKommentaren.checked = true;
+            const kommentarSchalter = element('label', 'kfze-schalter');
+            kommentarSchalter.append(mitKommentaren, document.createTextNode('Kommentare übertragen'));
+            const uebergabeBloecke = () => mitKommentaren.checked
+                ? sollStand.bloecke
+                : globalThis.KfPersonioUmrechnung.ohneKommentare(sollStand.bloecke);
+
             // Gesperrt bei Regelverstoß; ausgegraut, solange genau dieser Stand bereitliegt; sonst warnen, was ersetzt wird
             const zeigeUebergabeZustand = () => {
                 const hatVerstoesse = sollStand.verstoesse.length > 0;
                 const diesesTag = Boolean(bereitliegend) && bereitliegend.datum === auswahl.value;
-                const derselbeStand = diesesTag && globalThis.KfPersonioUmrechnung.gleicheUebergabeBloecke(bereitliegend.bloecke, sollStand.bloecke);
+                const derselbeStand = diesesTag && globalThis.KfPersonioUmrechnung.gleicheUebergabeBloecke(bereitliegend.bloecke, uebergabeBloecke());
                 uebernehmen.disabled = hatVerstoesse || derselbeStand;
                 beschriftung.textContent = derselbeStand ? 'Übernommen' : 'Für Personio übernehmen';
                 if (hatVerstoesse) {
@@ -112,14 +122,23 @@
                 bereitliegend = (await chrome.storage.local.get('personioExport')).personioExport || null;
                 zeigeUebergabeZustand();
             };
+            const ladeKommentarSchalter = async () => {
+                mitKommentaren.checked = (await chrome.storage.local.get('kommentareUebertragen')).kommentareUebertragen !== false;
+                zeigeUebergabeZustand();
+            };
+            mitKommentaren.addEventListener('change', async () => {
+                zeigeUebergabeZustand();
+                await chrome.storage.local.set({ kommentareUebertragen: mitKommentaren.checked });
+            });
+            // Der Schalter wird bei jedem Tageswechsel in die neue Vorschau umgehängt, sein Zustand bleibt
             const zeigeGewaehltenTag = () => zeigeTag(inhalt, boardDaten, auswahl.value, jetzt, stand => {
                 sollStand = stand;
                 zeigeUebergabeZustand();
-            });
+            }, kommentarSchalter);
 
             auswahl.addEventListener('change', zeigeGewaehltenTag);
             uebernehmen.addEventListener('click', async () => {
-                await chrome.storage.local.set({ personioExport: { datum: auswahl.value, bloecke: sollStand.bloecke } });
+                await chrome.storage.local.set({ personioExport: { datum: auswahl.value, bloecke: uebergabeBloecke() } });
             });
             beiSpeicheraenderung = (aenderungen, bereich) => {
                 if (bereich === 'local' && 'personioExport' in aenderungen) ladeBereitliegend();
@@ -127,6 +146,7 @@
             chrome.storage.onChanged.addListener(beiSpeicheraenderung);
             zeigeGewaehltenTag();
             ladeBereitliegend();
+            ladeKommentarSchalter();
         }
         dialog.appendChild(inhalt);
         dialog.appendChild(status);

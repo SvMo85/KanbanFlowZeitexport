@@ -269,6 +269,25 @@
     gap: 8px;
 }
 
+.kfze-kachel-kopf {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.kfze-teil .kfze-kachel-kopf h3 {
+    margin: 0;
+}
+
+.kfze-schalter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
 .kfze-blocker {
     position: fixed;
     inset: 0;

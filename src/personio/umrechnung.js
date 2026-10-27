@@ -249,6 +249,11 @@
             x.art === b[i].art && x.von === b[i].von && x.bis === b[i].bis && (x.kommentar || '') === (b[i].kommentar || ''));
     }
 
+    // Übergabestand ohne Kommentare: Personio bekommt nur die Zeiten
+    function ohneKommentare(bloecke) {
+        return bloecke.map(b => ({ ...b, kommentar: '' }));
+    }
+
     // Übergabe an den Personio-Teil über chrome.storage: Datum als Schlüssel, Zeiten als HH:MM
     function personioExport(datum, abschnitte) {
         return {
@@ -258,7 +263,7 @@
     }
 
     const api = { personioBloecke, personioExport, regelverstoesse, verschiebeGrenze, gleicheUebergabeBloecke,
-        alsUhrzeit, alsMinuten, kommentar, arbeitszeit, dauerOhneUeberlappung };
+        ohneKommentare, alsUhrzeit, alsMinuten, kommentar, arbeitszeit, dauerOhneUeberlappung };
 
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = api;

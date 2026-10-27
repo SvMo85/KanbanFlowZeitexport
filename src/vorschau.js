@@ -168,8 +168,9 @@
     }
 
     // beiAenderung (optional) erhält nach jeder Änderung { bloecke, verstoesse } - die bearbeiteten SOLL-Blöcke
-    // im Übergabeformat und die Regelverstöße; ohne Verstöße darf übernommen werden
-    function inhalt(abschnitte, beiAenderung) {
+    // im Übergabeformat und die Regelverstöße; ohne Verstöße darf übernommen werden.
+    // kopfZusatz (optional) steht rechtsbündig in der Kopfzeile der Personio-Kachel
+    function inhalt(abschnitte, beiAenderung, kopfZusatz) {
         const ist = istBloecke(abschnitte);
         let soll = personioBloecke(abschnitte);
 
@@ -224,7 +225,11 @@
             knopf('Auto', () => { soll = personioBloecke(abschnitte); zeichneSoll(); }, 'kfze-knopf-auto'));
         werkzeuge.lastChild.title = 'Bearbeitungen verwerfen und die Zeiten neu aus KanbanFlow berechnen';
 
-        sollTeil.append(element('h3', '', 'Personio'), tabelle, werkzeuge, summenPlatz, verstossPlatz);
+        const sollKopf = element('div', 'kfze-kachel-kopf');
+        sollKopf.appendChild(element('h3', '', 'Personio'));
+        if (kopfZusatz) sollKopf.appendChild(kopfZusatz);
+
+        sollTeil.append(sollKopf, tabelle, werkzeuge, summenPlatz, verstossPlatz);
         el.append(strahlenPlatz, tabelleFuer('KanbanFlow', 'Aufgabe', ist, 'kfze-kachel-kanbanflow'), sollTeil);
         zeichneSoll();
         return el;

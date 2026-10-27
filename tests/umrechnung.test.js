@@ -1,6 +1,6 @@
 ﻿const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { personioBloecke, regelverstoesse, verschiebeGrenze, alsUhrzeit, alsMinuten, kommentar, arbeitszeit, dauerOhneUeberlappung } = require('../src/personio/umrechnung.js');
+const { personioBloecke, regelverstoesse, verschiebeGrenze, alsUhrzeit, alsMinuten, kommentar, arbeitszeit, dauerOhneUeberlappung, ohneKommentare } = require('../src/personio/umrechnung.js');
 
 // Abschnitte wie aus tagesabschnitte(): "A 08:00 12:00 Aufgabe" bzw. "P 12:00 12:30"
 function tag(...zeilen) {
@@ -220,4 +220,19 @@ test('Wenn_Tag_aus_KanbanFlow_vom_21_10_dann_bleibt_er_regelkonform_unveraendert
 
     assert.deepEqual(lesbar(bloecke), ['A 08:25 12:00', 'P 12:00 12:44', 'A 12:44 17:33']);
     assert.equal(arbeitszeit(bloecke), 8 * 60 + 24);   // wie KanbanFlow: 8:24:25 h
+});
+
+test('Wenn_Kommentare_nicht_uebertragen_werden_dann_bleiben_die_Zeiten_und_die_Kommentare_sind_leer', () => {
+    const bloecke = [
+        { art: 'Arbeit', von: '08:00', bis: '12:00', kommentar: 'Portal' },
+        { art: 'Pause', von: '12:00', bis: '12:30', kommentar: '' }
+    ];
+
+    const ohne = ohneKommentare(bloecke);
+
+    assert.deepEqual(ohne, [
+        { art: 'Arbeit', von: '08:00', bis: '12:00', kommentar: '' },   // Zeiten unverändert, Kommentar weg
+        { art: 'Pause', von: '12:00', bis: '12:30', kommentar: '' }
+    ]);
+    assert.equal(bloecke[0].kommentar, 'Portal');   // der bearbeitete Stand der Vorschau bleibt unberührt
 });
