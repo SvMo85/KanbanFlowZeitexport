@@ -17,6 +17,10 @@ Zielbild: [Anforderungen/R00000-vision.md](Anforderungen/R00000-vision.md).
    Die Vorschau zeigt IST (KanbanFlow) und SOLL (Personio, nach den Pausen- und Höchstzeitregeln).
    Die Personio-Tabelle lässt sich bearbeiten; „Auto" stellt die berechneten Zeiten wieder her.
    Verstößt der bearbeitete Stand gegen eine Regel, ist Übernehmen gesperrt.
+   Ohne Haken bei „Zeiten korrigieren" gehen die Ist-Zeiten unverändert nach Personio (nur auf Minuten
+   abgerundet und gleichartige Blöcke vereinigt); die Zeiten sind dann nicht bearbeitbar, Regelverstöße
+   werden angezeigt, sperren das Übernehmen aber nicht.
+   Ohne Haken bei „Kommentare übertragen" gehen keine Kommentare mit.
 2. „Für Personio übernehmen" klicken.
 3. In Personio die Zeiterfassung in der Monatsansicht öffnen, neben „Abwesenheit beantragen"
    auf „Zeitexport einfügen" klicken. Während des Eintragens ist die Seite gesperrt.

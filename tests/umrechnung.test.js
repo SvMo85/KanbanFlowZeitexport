@@ -1,6 +1,6 @@
 ﻿const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { personioBloecke, regelverstoesse, verschiebeGrenze, alsUhrzeit, alsMinuten, kommentar, arbeitszeit, dauerOhneUeberlappung, ohneKommentare } = require('../src/personio/umrechnung.js');
+const { personioBloecke, regelverstoesse, verschiebeGrenze, alsUhrzeit, alsMinuten, kommentar, arbeitszeit, dauerOhneUeberlappung, ohneKommentare, unkorrigierteBloecke, regelverstoesseMitBloecken } = require('../src/personio/umrechnung.js');
 
 // Abschnitte wie aus tagesabschnitte(): "A 08:00 12:00 Aufgabe" bzw. "P 12:00 12:30"
 function tag(...zeilen) {
@@ -235,4 +235,53 @@ test('Wenn_Kommentare_nicht_uebertragen_werden_dann_bleiben_die_Zeiten_und_die_K
         { art: 'Pause', von: '12:00', bis: '12:30', kommentar: '' }
     ]);
     assert.equal(bloecke[0].kommentar, 'Portal');   // der bearbeitete Stand der Vorschau bleibt unberührt
+});
+
+test('Wenn_Zeiten_nicht_korrigiert_werden_dann_bleiben_kurze_Pause_fehlende_Mindestpause_und_mehr_als_10_h_stehen', () => {
+    const abschnitte = tag('A 07:00 13:00 Portal', 'P 13:00 13:05', 'A 13:05 18:30 Portal');
+
+    const bloecke = unkorrigierteBloecke(abschnitte);
+
+    assert.deepEqual(lesbar(bloecke), ['A 07:00 13:00', 'P 13:00 13:05', 'A 13:05 18:30']);   // Ist-Zeiten unverändert
+    assert.equal(arbeitszeit(bloecke), 11 * 60 + 25);                                          // nicht bei 10 h gekappt
+    assert.deepEqual(lesbar(personioBloecke(abschnitte)), ['A 07:00 13:00', 'P 13:00 13:45', 'A 13:45 17:45']);   // korrigiert sähe es so aus
+    assert.equal(regelverstoesse(bloecke).length, 1);   // die kurze Pause wird weiter gemeldet
+});
+
+test('Wenn_Zeiten_nicht_korrigiert_werden_dann_werden_Sekunden_abgeschnitten_und_Ueberlappungen_vereinigt', () => {
+    const bloecke = unkorrigierteBloecke(tag('A 08:52:59 09:14:29 Allgemein', 'A 09:14:29 11:00 Portal', 'A 10:30 11:20 Portal'));
+
+    assert.deepEqual(lesbar(bloecke), ['A 08:52 11:20']);           // ein Block über alle, Zeiten wie erfasst
+    assert.equal(kommentar(bloecke[0]), 'Allgemein, Portal');       // jede Aufgabe einmal
+});
+
+// Welche Blöcke ein Verstoß betrifft, als Positionen in der Eingabe - die Vorschau färbt genau diese orange
+function betroffen(bloecke) {
+    return regelverstoesseMitBloecken(bloecke).map(v => v.bloecke.map(b => bloecke.indexOf(b)));
+}
+
+test('Wenn_Pause_unter_15_min_dann_ist_genau_diese_Pause_betroffen', () => {
+    assert.deepEqual(betroffen(bearbeitet('A 08:00 12:00', 'P 12:00 12:10', 'A 12:10 13:00')), [[1]]);
+});
+
+test('Wenn_Bloecke_sich_ueberschneiden_dann_sind_beide_betroffen', () => {
+    assert.deepEqual(betroffen(bearbeitet('A 08:00 12:00', 'A 11:30 13:00')), [[0, 1]]);
+});
+
+test('Wenn_mehr_als_10_h_dann_sind_die_Arbeitsbloecke_ab_der_10_h_Grenze_betroffen', () => {
+    // 5 h + 5 h = genau 10 h nach Block 2, Block 3 geht darüber hinaus
+    const bloecke = bearbeitet('A 07:00 12:00', 'P 12:00 12:45', 'A 12:45 17:45', 'A 18:00 18:30');
+
+    assert.deepEqual(betroffen(bloecke)[0], [3]);   // nur der Block nach 10 h, nicht die ersten beiden
+});
+
+test('Wenn_7_h_ohne_Pause_dann_ist_der_Arbeitsblock_fuer_beide_Verstoesse_betroffen', () => {
+    // Mehr als 6 h am Stück und fehlende Pause: beide zeigen auf den einen Block
+    assert.deepEqual(betroffen(bearbeitet('A 08:00 15:00')), [[0], [0]]);
+});
+
+test('Wenn_Pause_zu_kurz_fuer_den_Tag_dann_ist_die_kurze_Pause_betroffen', () => {
+    // 8 h Arbeit brauchen 30 min Pause, vorhanden sind 20 min - die zählen nicht als Unterbrechung,
+    // also auch mehr als 6 h am Stück: erst der Arbeitsblock danach, dann die zu kurze Pause
+    assert.deepEqual(betroffen(bearbeitet('A 08:00 12:00', 'P 12:00 12:20', 'A 12:20 16:20')), [[2], [1]]);
 });

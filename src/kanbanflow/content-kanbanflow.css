@@ -125,6 +125,8 @@
     box-sizing: border-box;
 }
 
+.kfze-zeitfeld:disabled,
+.kfze-artfeld:disabled,
 .kfze-kommentarfeld:disabled {
     background: #f7fafc;
     border-color: #edf2f7;
@@ -155,6 +157,24 @@
 
 .kfze-teil .kfze-warnung {
     margin: 6px 0 0;
+}
+
+/* Regelverstöße orange - Text, betroffene Tabellenzeilen und Strahlbalken in derselben Farbe */
+.kfze-verstoss {
+    margin: 6px 0 0;
+    padding: 6px 10px;
+    border-left: 3px solid #dd6b20;
+    background: #feebc8;
+    color: #9c4221;
+    font-size: 13px;
+}
+
+.kfze-problem td {
+    background: #fffaf0;
+}
+
+.kfze-problem td:first-child {
+    box-shadow: inset 3px 0 0 #dd6b20;
 }
 
 .kfze-strahlen {
@@ -222,6 +242,15 @@
     background: #2b6cb0;
 }
 
+/* Block mit Regelverstoß: Arbeit kräftig, Pause hell orange */
+.kfze-strahl-arbeit.kfze-strahl-problem {
+    background: #dd6b20;
+}
+
+.kfze-strahl-pause.kfze-strahl-problem {
+    background: #f6ad55;
+}
+
 .kfze-strahl-achse {
     position: relative;
     height: 16px;
@@ -279,6 +308,12 @@
 
 .kfze-teil .kfze-kachel-kopf h3 {
     margin: 0;
+}
+
+.kfze-schalterleiste {
+    display: flex;
+    align-items: center;
+    gap: 14px;
 }
 
 /* KanbanFlow gibt label und input eigene Abstände; hier alles auf 0, damit Haken und Text mittig liegen */

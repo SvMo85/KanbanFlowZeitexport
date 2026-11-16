@@ -55,13 +55,13 @@
         return knopf;
     }
 
-    function zeigeTag(inhalt, boardDaten, datum, jetzt, beiAenderung, kommentare) {
+    function zeigeTag(inhalt, boardDaten, datum, jetzt, beiAenderung, kommentare, zeiten) {
         const abschnitte = kf.tagesabschnitte(boardDaten, datum, jetzt);
-        inhalt.replaceChildren(globalThis.KfVorschau.inhalt(abschnitte, beiAenderung, kommentare));
+        inhalt.replaceChildren(globalThis.KfVorschau.inhalt(abschnitte, beiAenderung, kommentare, zeiten));
     }
 
-    // kommentareUebertragen: gespeicherter Zustand des Schalters "Kommentare übertragen"
-    function zeigeDialog(boardDaten, kommentareUebertragen) {
+    // kommentareUebertragen, zeitenKorrigieren: gespeicherte Zustände der Schalter "Kommentare übertragen" und "Zeiten korrigieren"
+    function zeigeDialog(boardDaten, kommentareUebertragen, zeitenKorrigieren) {
         const jetzt = jetztLokal();
         const tage = kf.verfuegbareTage(boardDaten, jetzt);
 
@@ -82,7 +82,7 @@
 
             uebernehmen = knopfMitPersonioLogo('Für Personio übernehmen');
             const beschriftung = uebernehmen.lastChild;
-            let sollStand = { bloecke: [], verstoesse: [] };   // bearbeiteter Personio-Stand aus der Vorschau
+            let sollStand = { bloecke: [], verstoesse: [], zeitenKorrigiert: true };   // bearbeiteter Personio-Stand aus der Vorschau
             let bereitliegend = null;                           // Export, der in chrome.storage zur Übergabe liegt
 
             // Ob Kommentare mit nach Personio gehen; gilt über Tageswechsel und Sitzungen (chrome.storage)
@@ -93,15 +93,25 @@
                     await chrome.storage.local.set({ kommentareUebertragen: wert });
                 }
             };
+            // Ob die Zeiten nach den Personio-Regeln korrigiert werden; sonst gehen die Ist-Zeiten unverändert hinüber
+            const zeiten = {
+                korrigieren: zeitenKorrigieren,
+                beiUmschalten: async wert => {
+                    zeiten.korrigieren = wert;
+                    await chrome.storage.local.set({ zeitenKorrigieren: wert });
+                }
+            };
 
-            // Gesperrt bei Regelverstoß; ausgegraut, solange genau dieser Stand bereitliegt; sonst warnen, was ersetzt wird
+            // Gesperrt bei Regelverstoß in korrigierten Zeiten; ausgegraut, solange genau dieser Stand bereitliegt;
+            // sonst warnen, was ersetzt wird. Unkorrigierte Zeiten gehen trotz Verstoß hinüber, die Warnung bleibt sichtbar.
             const zeigeUebergabeZustand = () => {
                 const hatVerstoesse = sollStand.verstoesse.length > 0;
+                const gesperrt = hatVerstoesse && sollStand.zeitenKorrigiert;
                 const diesesTag = Boolean(bereitliegend) && bereitliegend.datum === auswahl.value;
                 const derselbeStand = diesesTag && globalThis.KfPersonioUmrechnung.gleicheUebergabeBloecke(bereitliegend.bloecke, sollStand.bloecke);
-                uebernehmen.disabled = hatVerstoesse || derselbeStand;
+                uebernehmen.disabled = gesperrt || derselbeStand;
                 beschriftung.textContent = derselbeStand ? 'Übernommen' : 'Für Personio übernehmen';
-                if (hatVerstoesse) {
+                if (gesperrt) {
                     status.className = 'kfze-warnung';
                     status.textContent = 'Übernehmen gesperrt: Die Personio-Zeiten verstoßen gegen die Regeln (siehe oben).';
                 } else if (derselbeStand) {
@@ -113,6 +123,9 @@
                 } else if (bereitliegend) {
                     status.className = 'kfze-warnung';
                     status.textContent = 'Zur Übergabe liegt noch der ' + tagAnzeige(bereitliegend.datum) + ' bereit. Übernehmen ersetzt ihn.';
+                } else if (hatVerstoesse) {
+                    status.className = 'kfze-warnung';
+                    status.textContent = 'Zeiten unkorrigiert: Sie verstoßen gegen die Regeln (siehe oben), werden aber so übernommen.';
                 } else {
                     status.className = 'kfze-hinweis';
                     status.textContent = '';
@@ -125,7 +138,7 @@
             const zeigeGewaehltenTag = () => zeigeTag(inhalt, boardDaten, auswahl.value, jetzt, stand => {
                 sollStand = stand;
                 zeigeUebergabeZustand();
-            }, kommentare);
+            }, kommentare, zeiten);
 
             auswahl.addEventListener('change', zeigeGewaehltenTag);
             uebernehmen.addEventListener('click', async () => {
@@ -167,8 +180,8 @@
         knopf.disabled = true;
         try {
             const boardDaten = await ladeBoardDaten();
-            const { kommentareUebertragen } = await chrome.storage.local.get('kommentareUebertragen');
-            zeigeDialog(boardDaten, kommentareUebertragen !== false);
+            const { kommentareUebertragen, zeitenKorrigieren } = await chrome.storage.local.get(['kommentareUebertragen', 'zeitenKorrigieren']);
+            zeigeDialog(boardDaten, kommentareUebertragen !== false, zeitenKorrigieren !== false);
         } catch (fehler) {
             alert('Zeitexport: ' + fehler.message);
         } finally {

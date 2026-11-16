@@ -38,8 +38,10 @@
         }));
     }
 
-    function personioBloecke(abschnitte) {
-        return umrechnung.personioBloecke(abschnitte)
+    // korrigieren: nach den Personio-Regeln berechnet; sonst die Ist-Zeiten unverändert
+    function personioBloecke(abschnitte, korrigieren) {
+        const bloecke = korrigieren ? umrechnung.personioBloecke(abschnitte) : umrechnung.unkorrigierteBloecke(abschnitte);
+        return bloecke
             .map(b => ({ art: b.art, von: b.von, bis: b.bis, text: umrechnung.kommentar(b), laeuft: false }));
     }
 
@@ -51,12 +53,14 @@
         return el;
     }
 
-    function spurFuer(bloecke, strahlRahmen) {
+    // problemBloecke (optional): Set der Blöcke, die gegen eine Regel verstoßen - ihr Balken wird orange
+    function spurFuer(bloecke, strahlRahmen, problemBloecke) {
         const lage = strahl.zeitstrahl(bloecke, strahlRahmen);
         const spur = element('div', 'kfze-strahl-spur');
         lage.balken.forEach((b, index) => {
             const block = bloecke[index];
-            const balken = element('div', 'kfze-strahl-balken ' + (b.art === 'Pause' ? 'kfze-strahl-pause' : 'kfze-strahl-arbeit'));
+            const problem = problemBloecke && problemBloecke.has(block) ? ' kfze-strahl-problem' : '';
+            const balken = element('div', 'kfze-strahl-balken ' + (b.art === 'Pause' ? 'kfze-strahl-pause' : 'kfze-strahl-arbeit') + problem);
             balken.style.left = b.linksProzent + '%';
             balken.style.width = b.breiteProzent + '%';
             balken.title = block.art + ' ' + uhrzeit(block.von) + '–' + (block.laeuft ? 'läuft' : uhrzeit(block.bis)) + (block.text ? ' · ' + block.text : '');
@@ -76,12 +80,12 @@
     }
 
     // Beide Strahlen dicht untereinander, Name links davor, eine gemeinsame Stundenachse darunter
-    function strahlenFuer(ist, soll) {
+    function strahlenFuer(ist, soll, problemBloecke) {
         const gemeinsamerRahmen = strahl.rahmen([ist, soll]);
         const el = element('div', 'kfze-strahlen');
         el.append(
             nameFuer('IST', 'KF', 'kfze-badge-kanbanflow', 'KanbanFlow'), spurFuer(ist, gemeinsamerRahmen),
-            nameFuer('SOLL', 'P', 'kfze-badge-personio', 'Personio'), spurFuer(soll, gemeinsamerRahmen),
+            nameFuer('SOLL', 'P', 'kfze-badge-personio', 'Personio'), spurFuer(soll, gemeinsamerRahmen, problemBloecke),
             element('div'), achseFuer(gemeinsamerRahmen));
         return el;
     }
@@ -130,7 +134,8 @@
     // Die Zeile merkt sich ihre Felder (zeile.felder), damit Zeitänderungen ohne Neuzeichnen
     // nachgetragen werden können - Neuzeichnen nähme dem Feld unter dem Cursor den Fokus.
     // kommentareAktiv() sagt, ob Kommentare übertragen werden; sonst ist das Feld gesperrt.
-    function sollZeile(b, beiAenderung, beiZeit, beiLoeschen, kommentareAktiv) {
+    // Ohne zeitenBearbeitbar (Ist-Zeiten unkorrigiert) sind Art, Von, Bis und Löschen gesperrt.
+    function sollZeile(b, beiAenderung, beiZeit, beiLoeschen, kommentareAktiv, zeitenBearbeitbar) {
         const zeile = element('tr', b.art === 'Pause' ? 'kfze-pause' : '');
         const dauer = element('td', '', dauerAnzeige(b.bis - b.von));
         const von = zeitfeld(b.von, m => beiZeit('von', m));
@@ -138,6 +143,8 @@
 
         const art = element('select', 'kfze-artfeld');
         ['Arbeit', 'Pause'].forEach(a => art.appendChild(new Option(a, a, false, a === b.art)));
+        const loeschen = knopf('Löschen', beiLoeschen, 'kfze-knopf-leise');
+        [art, von, bis, loeschen].forEach(feld => { feld.disabled = !zeitenBearbeitbar; });
         const kommentar = element('input', 'kfze-kommentarfeld');
         kommentar.type = 'text';
         kommentar.value = b.text;
@@ -159,18 +166,18 @@
             zelle(bis),
             dauer,
             zelle(kommentar),
-            zelle(knopf('Löschen', beiLoeschen, 'kfze-knopf-leise')));
+            zelle(loeschen));
         return zeile;
     }
 
-    function kommentarSchalter(an, beiUmschalten) {
+    function schalter(text, an, beiUmschalten) {
         const haken = element('input');
         haken.type = 'checkbox';
         haken.checked = an;
         haken.addEventListener('change', () => beiUmschalten(haken.checked));
-        const schalter = element('label', 'kfze-schalter');
-        schalter.append(haken, document.createTextNode('Kommentare übertragen'));
-        return schalter;
+        const el = element('label', 'kfze-schalter');
+        el.append(haken, document.createTextNode(text));
+        return el;
     }
 
     // Was an Personio geht: nach Beginn sortiert, Zeiten als HH:MM, Kommentar nur bei Arbeit
@@ -182,11 +189,15 @@
     // beiAenderung (optional) erhält nach jeder Änderung { bloecke, verstoesse } - die bearbeiteten SOLL-Blöcke
     // im Übergabeformat und die Regelverstöße; ohne Verstöße darf übernommen werden.
     // kommentare (optional) { uebertragen, beiUmschalten(wert) } zeigt rechtsbündig in der Kopfzeile der
-    // Personio-Kachel den Schalter "Kommentare übertragen"; aus heißt: Kommentarfelder gesperrt, Übergabe ohne Kommentare
-    function inhalt(abschnitte, beiAenderung, kommentare) {
+    // Personio-Kachel den Schalter "Kommentare übertragen"; aus heißt: Kommentarfelder gesperrt, Übergabe ohne Kommentare.
+    // zeiten (optional) { korrigieren, beiUmschalten(wert) } zeigt daneben den Schalter "Zeiten korrigieren"; aus heißt:
+    // SOLL sind die Ist-Zeiten unverändert, Zeitbearbeitung gesperrt, Regelverstöße werden angezeigt, sperren aber nicht.
+    // beiAenderung erhält dazu zeitenKorrigiert, damit der Aufrufer weiß, ob Verstöße die Übernahme sperren.
+    function inhalt(abschnitte, beiAenderung, kommentare, zeiten) {
         const ist = istBloecke(abschnitte);
-        let soll = personioBloecke(abschnitte);
         let kommentareUebertragen = kommentare ? kommentare.uebertragen : true;
+        let zeitenKorrigieren = zeiten ? zeiten.korrigieren : true;
+        let soll = personioBloecke(abschnitte, zeitenKorrigieren);
 
         const el = element('div', 'kfze-vorschau');
         const strahlenPlatz = element('div');
@@ -195,19 +206,28 @@
         const summenPlatz = element('div');
         const verstossPlatz = element('div');
 
+        // Verstöße orange: als Text unter der Tabelle, die betroffenen Blöcke im SOLL-Strahl und in der Tabelle
         const zeigeStand = () => {
-            strahlenPlatz.replaceChildren(strahlenFuer(ist, soll));
+            const verstoesse = umrechnung.regelverstoesseMitBloecken(soll);
+            const problemBloecke = new Set(verstoesse.flatMap(v => v.bloecke));
+            strahlenPlatz.replaceChildren(strahlenFuer(ist, soll, problemBloecke));
             summenPlatz.replaceChildren(summeFuer(soll));
-            const verstoesse = umrechnung.regelverstoesse(soll);
-            verstossPlatz.replaceChildren(...verstoesse.map(v => element('p', 'kfze-warnung', v)));
+            verstossPlatz.replaceChildren(...verstoesse.map(v => element('p', 'kfze-verstoss', v.text)));
+            [...rumpf.children].forEach((zeile, i) => zeile.classList.toggle('kfze-problem', problemBloecke.has(soll[i])));
             const bloecke = alsExportBloecke(soll);
-            if (beiAenderung) beiAenderung({ bloecke: kommentareUebertragen ? bloecke : umrechnung.ohneKommentare(bloecke), verstoesse });
+            if (beiAenderung) beiAenderung({
+                bloecke: kommentareUebertragen ? bloecke : umrechnung.ohneKommentare(bloecke),
+                verstoesse: verstoesse.map(v => v.text),
+                zeitenKorrigiert: zeitenKorrigieren
+            });
         };
         const zeichneSoll = () => {
             rumpf.replaceChildren(...soll.map((b, index) => sollZeile(b, zeigeStand,
                 (feld, minuten) => aendereZeit(index, feld, minuten),
                 () => { soll = soll.filter(x => x !== b); zeichneSoll(); },
-                () => kommentareUebertragen)));
+                () => kommentareUebertragen,
+                zeitenKorrigieren)));
+            [...werkzeuge.children].forEach(k => { k.disabled = !zeitenKorrigieren; });
             zeigeStand();
         };
         // Zeit geändert: Werte in die vorhandenen Blöcke übernehmen (Nachbar wandert mit) und nur die
@@ -238,17 +258,26 @@
         werkzeuge.append(
             knopf('+ Arbeit', () => haengeAn('Arbeit')),
             knopf('+ Pause', () => haengeAn('Pause')),
-            knopf('Auto', () => { soll = personioBloecke(abschnitte); zeichneSoll(); }, 'kfze-knopf-auto'));
+            knopf('Auto', () => { soll = personioBloecke(abschnitte, zeitenKorrigieren); zeichneSoll(); }, 'kfze-knopf-auto'));
         werkzeuge.lastChild.title = 'Bearbeitungen verwerfen und die Zeiten neu aus KanbanFlow berechnen';
 
         const sollKopf = element('div', 'kfze-kachel-kopf');
         sollKopf.appendChild(element('h3', '', 'Personio'));
-        if (kommentare) sollKopf.appendChild(kommentarSchalter(kommentareUebertragen, wert => {
+        const schalterleiste = element('div', 'kfze-schalterleiste');
+        // Umschalten rechnet SOLL neu - wie "Auto", Bearbeitungen gehen verloren
+        if (zeiten) schalterleiste.appendChild(schalter('Zeiten korrigieren', zeitenKorrigieren, wert => {
+            zeitenKorrigieren = wert;
+            soll = personioBloecke(abschnitte, zeitenKorrigieren);
+            zeichneSoll();
+            zeiten.beiUmschalten(wert);
+        }));
+        if (kommentare) schalterleiste.appendChild(schalter('Kommentare übertragen', kommentareUebertragen, wert => {
             kommentareUebertragen = wert;
             [...rumpf.children].forEach(zeile => zeile.felder.sperreKommentar());
             zeigeStand();
             kommentare.beiUmschalten(wert);
         }));
+        sollKopf.appendChild(schalterleiste);
 
         sollTeil.append(sollKopf, tabelle, werkzeuge, summenPlatz, verstossPlatz);
         el.append(strahlenPlatz, tabelleFuer('KanbanFlow', 'Aufgabe', ist, 'kfze-kachel-kanbanflow'), sollTeil);
